@@ -20,12 +20,11 @@ let loaded_ex_environment_setting=1
 " ======================================================== 
 
 " ------------------------------------------------------------------ 
-" Desc: create to specified where to put vim files 
+" Desc: 
+" NOTE: this value will be set automatically
 " ------------------------------------------------------------------ 
 
-if !exists('g:exES_vimfile_dir')
-    let g:exES_vimfile_dir = "_vimfiles"
-endif
+let g:exES_vimfiles_dirname = "_vimfiles"
 
 " ------------------------------------------------------------------ 
 " Desc: set project command
@@ -63,12 +62,6 @@ if !exists('g:exES_WebBrowser')
     endif
 endif
 
-" ------------------------------------------------------------------ 
-" Desc: current version. increase this will cause template re-write 
-" ------------------------------------------------------------------ 
-
-let s:exES_CurrentVersion = 17
-
 " ======================================================== 
 " local variable initialization 
 " ======================================================== 
@@ -79,6 +72,12 @@ let s:exES_CurrentVersion = 17
 
 let s:exES_setted = 0
 
+" ------------------------------------------------------------------ 
+" Desc: current version. increase this will cause template re-write 
+" ------------------------------------------------------------------ 
+
+let s:exES_CurrentVersion = 21
+
 "/////////////////////////////////////////////////////////////////////////////
 " function defines
 "/////////////////////////////////////////////////////////////////////////////
@@ -88,21 +87,25 @@ let s:exES_setted = 0
 " ------------------------------------------------------------------ 
 
 function s:exES_WriteDefaultTemplate() " <<<
-    let _cwd = exUtility#Pathfmt( getcwd(), 'unix' )
-    let _dir_name = g:exES_vimfile_dir
-    let _vimfile_fullpath = simplify(_cwd.'/'._dir_name)
-    let _project_name = fnamemodify( expand('%'), ":t:r" )  
+    " NOTE: we use the dir path of .vimentry instead of getcwd().  
+    let _cwd = exUtility#Pathfmt( fnamemodify( expand('%'), ':p:h' ), 'unix' )
+    let _vimentry_name = fnamemodify( expand('%'), ":t:r" )  
+    let _dir_name = '_vimfiles_'._vimentry_name
     let _list = []
 
+    silent call add(_list, '-- auto-gen settings (DO NOT MODIFY) --')
+    silent call add(_list, '')
     silent call add(_list, 'CWD='._cwd)
     silent call add(_list, 'Version='.s:exES_CurrentVersion)
+    silent call add(_list, 'VimEntryName='._vimentry_name)
+    silent call add(_list, 'VimfilesDirName='._dir_name)
 
 	" Init the exUtility plugin file path
     silent call add(_list, '')
     silent call add(_list, '-- ex-plugins File Settings --')
     silent call add(_list, '')
     silent call add(_list, 'LangType=auto') " NOTE: null means depends on file_filter
-    silent call add(_list, 'Project=./'._dir_name.'/'._project_name.'.exproject')
+    silent call add(_list, 'Project=./'._dir_name.'/'.'project_tree.exproject')
     silent call add(_list, 'FilenameList=./'._dir_name.'/filenamelist')
     silent call add(_list, 'Tag=./'._dir_name.'/tags') " NOTE: if cpoptions+=d not set for each buffer, then the tags need full path or will not be able to find. so pls write 'au BufNewFile,BufEnter * set cpoptions+=d' in your rc
     silent call add(_list, 'ID=./'._dir_name.'/ID')
@@ -131,10 +134,10 @@ function s:exES_WriteDefaultTemplate() " <<<
     silent call add(_list, '-- Visual Studio Settings --')
     silent call add(_list, '')
 
-    silent call add(_list, 'vsTaskList=./'._dir_name.'/vs_task_list.txt')
-    silent call add(_list, 'vsOutput=./'._dir_name.'/vs_output.txt')
-    silent call add(_list, 'vsFindResult1=./'._dir_name.'/vs_find_results_1.txt')
-    silent call add(_list, 'vsFindResult2=./'._dir_name.'/vs_find_results_2.txt')
+    silent call add(_list, 'vsTaskList=./'._dir_name.'/vs_task_list')
+    silent call add(_list, 'vsOutput=./'._dir_name.'/vs_output')
+    silent call add(_list, 'vsFindResult1=./'._dir_name.'/vs_find_results_1')
+    silent call add(_list, 'vsFindResult2=./'._dir_name.'/vs_find_results_2')
 
 	" TODO: use list for souliton results, and apply this list in
 	" visual_studio plugin search
@@ -162,6 +165,45 @@ function s:exES_WriteDefaultTemplate() " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
+" Desc: default environment update function 
+" ------------------------------------------------------------------ 
+
+function s:exES_LoadSettings( start, end ) " <<<
+    for Line in getline( a:start, a:end )
+        if match(Line,'+=\|=') == -1 " if the line is comment line, skip it.
+            continue 
+        endif
+
+        if stridx ( Line, '+=') == -1
+            let SettingList = split(Line, "=")
+            if len(SettingList)>=2 " set value as string to the non-list variable.
+                " let g:exES_{SettingList[0]} = escape(SettingList[1], ' ')
+                " since '\ ' will get error in win32, just disable it here
+                let g:exES_{SettingList[0]} = SettingList[1]
+            elseif len(SettingList)>=1 " if don't have value, set '' value
+                let g:exES_{SettingList[0]} = ''
+            endif
+        else " create list variables
+            let SettingList = split(Line, "+=")
+            if len(SettingList)>=1 " we can define a variable if the number of split list itmes more than one
+                if !exists( 'g:exES_'.SettingList[0] ) " if we don't define this list variable, define it first
+                    let g:exES_{SettingList[0]} = []
+                endif
+
+                " now add items to the list
+                if len(SettingList)>=2 " we can assigne a value if the number of split list items more then two
+                    if findfile( SettingList[1] ) != ''
+                        silent call add ( g:exES_{SettingList[0]}, SettingList[1] )
+                    else
+                        call exUtility#WarningMsg( 'Warning: vimentry ' . SettingList[1] . ' not found! Skip reference it' )
+                    endif
+                endif
+            endif
+        endif
+    endfor
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
 " Desc: 
 " ------------------------------------------------------------------ 
 
@@ -175,13 +217,15 @@ function g:exES_SetEnvironment( force_reset ) " <<<
 	syn match exES_SynSetting transparent  "^.\{-}=.*$" contains=exES_SynVar,exES_SynOperator
 	syn match exES_SynVar	"^.\{-}=" contained contains=exES_SynOperator
 	syn match exES_SynOperator	"+*=.*$" contained contains=exES_SynVal
-	syn match exES_SynVal	"[^+=].*$" contained
+	syn match exES_SynVal	"[^+=].*$" contained " contains=exES_SynDeref
 	syn match exES_SynComment	"^-- .\+ --$" 
+    " KEEPME: syn region exES_SynDeref start="\${" end="}" contained
 
 	highlight def exES_SynVar gui=none guifg=DarkCyan term=none cterm=none ctermfg=DarkCyan
 	highlight link exES_SynOperator Normal
 	highlight def exES_SynVal gui=none guifg=Brown term=none cterm=none ctermfg=Brown
 	highlight link exES_SynComment Comment
+    " KEEPME highlight link exES_SynDeref Preproc
 
     " record edit buffer
     silent! call exUtility#RecordCurrentBufNum()
@@ -207,32 +251,19 @@ function g:exES_SetEnvironment( force_reset ) " <<<
     if s:exES_setted != 1 || a:force_reset == 1
         let s:exES_setted = 1
 
-        " get CWD
-        let Line = getline(1)
-        let SettingList = split(Line, "=")
-        if len(SettingList)>=2
-            " let g:exES_{SettingList[0]} = escape(SettingList[1], ' ')
-            " since '\ ' will get error in win32, just disable it here
-            let g:exES_{SettingList[0]} = SettingList[1]
-        endif
-		" get Ver.
-        let Line = getline(2)
-        let SettingList = split(Line, "=")
-        if len(SettingList)>=2
-            let g:exES_{SettingList[0]} = SettingList[1]
-        endif
+        " get CWD and Version
+        call s:exES_LoadSettings ( 1, 6 )
 
         " check if need to update setting file
         let need_update = 0
 
         " process check
-        let _cwd = exUtility#Pathfmt( getcwd(), 'unix' )
+        let _cwd = exUtility#Pathfmt( fnamemodify( expand('%'), ':p:h' ), 'unix' )
         if !exists( 'g:exES_CWD' ) || !exists( 'g:exES_Version' )
             echomsg "g:exES_CWD/g:exES_Version not exists"
             let need_update = 1
         elseif g:exES_CWD != _cwd " check if CWD is correct, rewrite default template if not
             echomsg "g:exES_CWD != _cwd ==> " . g:exES_CWD . " != " . _cwd
-            let g:exES_CWD = _cwd 
             let need_update = 1
         elseif g:exES_Version != s:exES_CurrentVersion " check if Ver is correct, rewrite default template if not
             echomsg "g:exES_Version != s:exES_CurrentVersion ==> " . g:exES_Version . " != " . s:exES_CurrentVersion
@@ -246,55 +277,8 @@ function g:exES_SetEnvironment( force_reset ) " <<<
         endif
 
         " read lines to get settings
-        for Line in getline(1, '$')
-            if match(Line,'+=\|=') == -1 " if the line is comment line, skip it.
-                continue 
-            endif
-
-            if stridx ( Line, '+=') == -1
-                let SettingList = split(Line, "=")
-                if len(SettingList)>=2 " set value as string to the non-list variable.
-                    " let g:exES_{SettingList[0]} = escape(SettingList[1], ' ')
-                    " since '\ ' will get error in win32, just disable it here
-                    let g:exES_{SettingList[0]} = SettingList[1]
-                elseif len(SettingList)>=1 " if don't have value, set '' value
-                    let g:exES_{SettingList[0]} = ''
-                endif
-            else " create list variables
-                let SettingList = split(Line, "+=")
-                if len(SettingList)>=1 " we can define a variable if the number of split list itmes more than one
-                    if !exists( 'g:exES_'.SettingList[0] ) " if we don't define this list variable, define it first
-                        let g:exES_{SettingList[0]} = []
-                    endif
-
-                    " now add items to the list
-                    if len(SettingList)>=2 " we can assigne a value if the number of split list items more then two
-                        if findfile( SettingList[1] ) != ''
-                            silent call add ( g:exES_{SettingList[0]}, SettingList[1] )
-                        else
-                            call exUtility#WarningMsg( 'Warning: vimentry ' . SettingList[1] . ' not found! Skip reference it' )
-                        endif
-                    endif
-                endif
-            endif
-        endfor
-
-        " create _vimfiles directory
-        if finddir(g:exES_CWD.'/'.g:exES_vimfile_dir) == ''
-            silent call mkdir(g:exES_CWD.'/'.g:exES_vimfile_dir)
-        endif
-
-        " create _inherits directory
-        let inherit_directory_path = g:exES_CWD.'/'.g:exES_vimfile_dir.'/_hierarchies' 
-        if finddir(inherit_directory_path) == ''
-            silent call mkdir(inherit_directory_path)
-        endif
-
-        " create _temp directory
-        let temp_directory_path = g:exES_CWD.'/'.g:exES_vimfile_dir.'/_temp' 
-        if finddir(temp_directory_path) == ''
-            silent call mkdir(temp_directory_path)
-        endif
+        " NOTE: since we may rewrite the 'auto-gen settings' section, we need to load from first line.
+        call s:exES_LoadSettings ( 1, '$' )
 
         " update environment
         call g:exES_UpdateEnvironment()
@@ -309,15 +293,37 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function g:exES_UpdateEnvironment() " <<<
+    " set parent working directory
+    if exists( 'g:exES_CWD' )
+        silent exec 'cd ' . g:exES_CWD
+    endif
+
+    " create _vimfiles directories
+    if exists ('g:exES_VimfilesDirName')
+        let g:exES_vimfiles_dirname = g:exES_VimfilesDirName
+
+        " create _vimfiles directory
+        if finddir(g:exES_CWD.'/'.g:exES_vimfiles_dirname) == ''
+            silent call mkdir(g:exES_CWD.'/'.g:exES_vimfiles_dirname)
+        endif
+
+        " create _inherits directory
+        let inherit_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/_hierarchies' 
+        if finddir(inherit_directory_path) == ''
+            silent call mkdir(inherit_directory_path)
+        endif
+
+        " create _temp directory
+        let temp_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/_temp' 
+        if finddir(temp_directory_path) == ''
+            silent call mkdir(temp_directory_path)
+        endif
+    endif
+
     " Open Minibuffer always, re-adjust project position
     let g:miniBufExplorerMoreThanOne = 0 
     if exists(':MiniBufExplorer')
         silent exe "MiniBufExplorer"
-    endif
-
-    " set parent working directory
-    if exists( 'g:exES_CWD' )
-        silent exec 'cd ' . g:exES_CWD
     endif
 
     " set tag file path
@@ -344,8 +350,9 @@ function g:exES_UpdateEnvironment() " <<<
     " set vimentry references
     if exists ('g:exES_vimentryRefs')
         for vimentry in g:exES_vimentryRefs
-            let entry_dir = fnamemodify( vimentry, ':p:h')
-            let fullpath_tagfile = exUtility#GetVimFile ( entry_dir, 'tag')
+            let ref_entry_dir = fnamemodify( vimentry, ':p:h')
+            let ref_vimfiles_dirname = '_vimfiles_' . fnamemodify( vimentry, ":t:r" )
+            let fullpath_tagfile = exUtility#GetVimFile ( ref_entry_dir, ref_vimfiles_dirname, 'tag')
             if has ('win32')
                 let fullpath_tagfile = exUtility#Pathfmt( fullpath_tagfile, 'windows' )
             elseif has ('unix')
