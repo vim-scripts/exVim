@@ -175,14 +175,15 @@ let s:elifn_disable_pattern = s:elifn_and_pattern . s:def_macro_pattern . s:end_
 " ------------------------------------------------------------------ 
 
 function s:exMH_OpenWindow( short_title ) " <<<
+    " read the file first, if file name changes, reset title.
     " if s:exMH_cur_filename don't load, we load and do MH init 
-    if s:exMH_cur_filename == ''
-        if exists('g:exES_Macro')
+    if exists('g:exES_Macro')
+        if s:exMH_cur_filename != g:exES_Macro
             call g:exMH_InitMacroList(g:exES_Macro)
-        else
-            call exUtility#WarningMsg('macro file not found, please create one in vimentry')
-            call g:exMH_InitMacroList(s:exMH_select_title)
         endif
+    else
+        call exUtility#WarningMsg('macro file not found, please create one in vimentry')
+        call g:exMH_InitMacroList(s:exMH_select_title)
     endif
 
     " if need switch window
@@ -206,9 +207,9 @@ function s:exMH_OpenWindow( short_title ) " <<<
     endif
     " open window
     if g:exMH_use_vertical_window
-        call exUtility#OpenWindow( title, g:exMH_window_direction, g:exMH_window_width, g:exMH_use_vertical_window, g:exMH_edit_mode, s:exMH_backto_editbuf, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exMH_window_direction, g:exMH_window_width, g:exMH_use_vertical_window, g:exMH_edit_mode, 1, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
     else
-        call exUtility#OpenWindow( title, g:exMH_window_direction, g:exMH_window_height, g:exMH_use_vertical_window, g:exMH_edit_mode, s:exMH_backto_editbuf, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exMH_window_direction, g:exMH_window_height, g:exMH_use_vertical_window, g:exMH_edit_mode, 1, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -229,14 +230,15 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exMH_ToggleWindow( short_title ) " <<<
+    " read the file first, if file name changes, reset title.
     " if s:exMH_cur_filename don't load, we load and do MH init 
-    if s:exMH_cur_filename == ''
-        if exists('g:exES_Macro')
+    if exists('g:exES_Macro')
+        if s:exMH_cur_filename != g:exES_Macro
             call g:exMH_InitMacroList(g:exES_Macro)
-        else
-            call exUtility#WarningMsg('macro file not found, please create one in vimentry')
-            call g:exMH_InitMacroList(s:exMH_select_title)
         endif
+    else
+        call exUtility#WarningMsg('macro file not found, please create one in vimentry')
+        call g:exMH_InitMacroList(s:exMH_select_title)
     endif
 
     " if need switch window
@@ -259,9 +261,9 @@ function s:exMH_ToggleWindow( short_title ) " <<<
         let title = s:exMH_cur_filename
     endif
     if g:exMH_use_vertical_window
-        call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_width, g:exMH_use_vertical_window, 'none', s:exMH_backto_editbuf, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_width, g:exMH_use_vertical_window, 'none', 0, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
     else
-        call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_height, g:exMH_use_vertical_window, 'none', s:exMH_backto_editbuf, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_height, g:exMH_use_vertical_window, 'none', 0, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -341,10 +343,10 @@ function g:exMH_InitMacroList(macrofile_name) " <<<
     endif
 
     " define autocmd for update syntax
+    autocmd BufEnter *.c,*.C,*.c++,*.cc,*.cp,*.cpp,*.cxx,*.h,*.H,*.h++,*.hh,*.hp,*.hpp,*.hxx,*.inl,*.ipp call s:exMH_UpdateSyntax()
     " TODO: the shader still have problem
-    " *.hlsl,*.fx,*.fxh,*.cg,*.vsh,*.psh,*.shd
-    autocmd BufEnter *.h,*.hh,*.hpp,*.hxx,*.inl,*.H,*.c,*.cc,*.cpp,*.cxx,*.c++,*.C call s:exMH_UpdateSyntax()
-    autocmd BufEnter *.hlsl,*.fx,*.fxh,*.cg,*.vsh,*.psh,*.shd call s:exMH_UpdateSyntax()
+    autocmd BufEnter *.hlsl,*.fx,*.fxh,*.cg,*.vsh,*.psh,*.shd,*.glsl call s:exMH_UpdateSyntax()
+
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -576,9 +578,9 @@ function g:exMH_InitSelectWindow() " <<<
     nnoremap <buffer> <silent> <ESC>   :call <SID>exMH_ToggleWindow('Select')<CR>
     nnoremap <buffer> <silent> <Return>   :call <SID>exMH_SelectConfirm()<CR>
 
-    "nnoremap <buffer> <silent> <C-Return> :call <SID>exMH_GotoResultInSelectWindow()<CR>
-    "nnoremap <buffer> <silent> <C-Left>   :call <SID>exMH_SwitchWindow('QuickView')<CR>
-    "nnoremap <buffer> <silent> <C-Right>   :call <SID>exMH_SwitchWindow('Select')<CR>
+    " dummy mapping
+    nnoremap <buffer> <silent> <C-Left>   :call <SID>exMH_SwitchWindow('Select')<CR>
+    nnoremap <buffer> <silent> <C-Right>   :call <SID>exMH_SwitchWindow('Select')<CR>
 
     " autocmd
     " au CursorMoved <buffer> :call exUtility#HighlightSelectLine()
@@ -746,7 +748,7 @@ endfunction " >>>
 
 command ExmhSelectToggle call s:exMH_ToggleWindow('Select')
 command ExmhToggle call s:exMH_ToggleWindow('')
-command -narg=? ExmhHL call s:exMH_SyntaxHL("<args>")
+command -narg=? ExmhHL call s:exMH_SyntaxHL('<args>')
 
 "/////////////////////////////////////////////////////////////////////////////
 " finish

@@ -58,16 +58,88 @@ if exists('g:ex_comment_lable_keyword')
 endif
 
 " ------------------------------------------------------------------ 
+" Desc: language file maps 
+" ------------------------------------------------------------------ 
+
+let s:ex_exvim_lang_map = {}
+let s:ex_exvim_lang_map['asm'] = [ 'asm', 'ASM' ]
+let s:ex_exvim_lang_map['awk'] = [ 'awk', 'gawk', 'mawk' ]
+let s:ex_exvim_lang_map['batch'] = [ 'bat' ]
+let s:ex_exvim_lang_map['c'] = [ 'c', 'C' ]
+let s:ex_exvim_lang_map['cpp'] = ['c++', 'cc', 'cp', 'cpp', 'cxx', 'h', 'H', 'h++', 'hh', 'hp', 'hpp', 'hxx', 'inl', 'ipp' ]
+let s:ex_exvim_lang_map['c#'] = [ 'cs' ]
+let s:ex_exvim_lang_map['doxygen'] = [ 'dox', 'doxygen' ]
+let s:ex_exvim_lang_map['debug'] = [ 'log', 'err', 'exe' ]
+let s:ex_exvim_lang_map['html'] = [ 'htm', 'html' ]
+let s:ex_exvim_lang_map['ini'] = [ 'ini', 'cfg' ]
+let s:ex_exvim_lang_map['java'] = [ 'java' ]
+let s:ex_exvim_lang_map['javascript'] = [ 'js' ]
+let s:ex_exvim_lang_map['lua'] = [ 'lua' ]
+let s:ex_exvim_lang_map['make'] = [ 'mak', 'mk', 'Makefile', 'makefile' ]
+let s:ex_exvim_lang_map['math'] = [ 'm' ]
+let s:ex_exvim_lang_map['python'] = [ 'py', 'pyw', 'pyx', 'pxd' ]
+let s:ex_exvim_lang_map['ruby'] = [ 'rb', 'ruby' ]
+let s:ex_exvim_lang_map['sh'] = [ 'sh', 'SH', 'bsh', 'bash', 'ksh', 'zsh' ]
+let s:ex_exvim_lang_map['shader'] = [ 'hlsl', 'vsh', 'psh', 'fx', 'fxh', 'cg', 'shd', 'glsl' ]
+let s:ex_exvim_lang_map['uc'] = [ 'uc' ]
+let s:ex_exvim_lang_map['vim'] = [ 'vim' ]
+let s:ex_exvim_lang_map['wiki'] = [ 'wiki' ]
+let s:ex_exvim_lang_map['xml'] = [ 'xml' ]
+
+" ------------------------------------------------------------------ 
+" Desc: ctags language file maps 
+" ------------------------------------------------------------------ 
+
+let s:ex_ctags_lang_map = {}
+let s:ex_ctags_lang_map['asm'] = [ 'asm', 'ASM', 's', 'S', 'A51' ]
+let s:ex_ctags_lang_map['asp'] = [ 'asp', 'asa' ]
+let s:ex_ctags_lang_map['awk'] = [ 'awk', 'gawk', 'mawk' ]
+let s:ex_ctags_lang_map['basic'] = [ 'bas', 'bi', 'bb', 'pb' ]
+let s:ex_ctags_lang_map['beta'] = [ 'bet' ]
+let s:ex_ctags_lang_map['c'] = [ 'c' ]
+let s:ex_ctags_lang_map['cpp'] = [ 'c++', 'cc', 'cp', 'cpp', 'cxx', 'h', 'h++', 'hh', 'hp', 'hpp', 'hxx' ]
+let s:ex_ctags_lang_map['c#'] = [ 'cs' ]
+let s:ex_ctags_lang_map['cobol'] = [ 'cbl', 'cob', 'CBL', 'COB' ]
+let s:ex_ctags_lang_map['eiffel'] = [ 'e' ]
+let s:ex_ctags_lang_map['erlang'] = [ 'erl', 'ERL', 'hrl', 'HRL' ]
+let s:ex_ctags_lang_map['fortran'] = [ 'fo', 'ft', 'f7', 'f9', 'f95' ]
+let s:ex_ctags_lang_map['html'] = [ 'htm', 'html' ]
+let s:ex_ctags_lang_map['java'] = [ 'java' ]
+let s:ex_ctags_lang_map['javascript'] = [ 'js' ]
+let s:ex_ctags_lang_map['lisp'] = [ 'cl', 'clisp', 'el', 'l', 'lisp', 'lsp', 'ml' ]
+let s:ex_ctags_lang_map['lua'] = [ 'lua' ]
+let s:ex_ctags_lang_map['make'] = [ 'mak', 'mk', 'Makefile', 'makefile' ]
+let s:ex_ctags_lang_map['pascal'] = [ 'p', 'pas' ]
+let s:ex_ctags_lang_map['perl'] = [ 'pl', 'pm', 'plx', 'perl' ]
+let s:ex_ctags_lang_map['php'] = [ 'php', 'php3', 'phtml' ]
+let s:ex_ctags_lang_map['python'] = [ 'py', 'pyx', 'pxd', 'scons' ]
+let s:ex_ctags_lang_map['rexx'] = [ 'cmd', 'rexx', 'rx' ]
+let s:ex_ctags_lang_map['ruby'] = [ 'rb', 'ruby' ]
+let s:ex_ctags_lang_map['scheme'] = [ 'SCM', 'SM', 'sch', 'scheme', 'scm', 'sm' ]
+let s:ex_ctags_lang_map['sh'] = [ 'sh', 'SH', 'bsh', 'bash', 'ksh', 'zsh' ]
+let s:ex_ctags_lang_map['slang'] = [ 'sl' ]
+let s:ex_ctags_lang_map['sml'] = ['sml', 'sig' ]
+let s:ex_ctags_lang_map['sql'] = ['sql' ]
+let s:ex_ctags_lang_map['tcl'] = ['tcl', 'tk', 'wish', 'itcl' ]
+let s:ex_ctags_lang_map['vera'] = ['vr', 'vri', 'vrh' ]
+let s:ex_ctags_lang_map['verilog'] = [ 'v' ]
+let s:ex_ctags_lang_map['vim'] = [ 'vim' ]
+let s:ex_ctags_lang_map['yacc'] = [ 'y' ]
+
+" ------------------------------------------------------------------ 
 " Desc: project file filter 
 " ------------------------------------------------------------------ 
 
 let s:ex_project_file_filter  = 'c,cpp,cxx,c++,C,cc,'
 let s:ex_project_file_filter .= 'h,H,hh,hxx,hpp,inl,'
+let s:ex_project_file_filter .= 'cs,'
 let s:ex_project_file_filter .= 'uc,'
-let s:ex_project_file_filter .= 'hlsl,vsh,psh,glsl,'
+let s:ex_project_file_filter .= 'hlsl,vsh,psh,fx,fxh,cg,shd,glsl,'
+let s:ex_project_file_filter .= 'py,pyw,'
+let s:ex_project_file_filter .= 'vim,awk,m,'
 let s:ex_project_file_filter .= 'dox,doxygen,'
-let s:ex_project_file_filter .= 'ini,cfg,'
-let s:ex_project_file_filter .= 'mk,err,exe,'
+let s:ex_project_file_filter .= 'ini,cfg,wiki,'
+let s:ex_project_file_filter .= 'mk,err,exe,bat,sh,'
 
 " ------------------------------------------------------------------ 
 " Desc: project dir filter 
@@ -161,8 +233,8 @@ function exUtility#CreateWindow( buffer_name, window_direction, window_size, use
     endif
 
     " after create the window, record the bufname into the plugin list
-    if index( g:exUT_plugin_list, fnamemodify(a:buffer_name,":p:t") ) == -1
-        silent call add(g:exUT_plugin_list, fnamemodify(a:buffer_name,":p:t"))
+    if index( g:ex_plugin_list, fnamemodify(a:buffer_name,":p:t") ) == -1
+        silent call add(g:ex_plugin_list, fnamemodify(a:buffer_name,":p:t"))
     endif
 
 endfunction " >>>
@@ -395,6 +467,28 @@ function exUtility#OperateWindow( title, close_when_selected, backto_edibut, hl_
             endif
         endif
     endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#CloseAllExpluginWindow() " <<<
+    " walk through all window in exVim
+    let i = 1
+    let bufnum_list = []
+    while i <= winnr("$")
+        let bnum = winbufnr(i)
+        if bnum != -1 && getbufvar(bnum, '&filetype') ==# 'ex_filetype'
+            silent call add ( bufnum_list, bnum )
+        endif
+        let i += 1
+    endwhile
+
+    "
+    for bnum in bufnum_list
+        call exUtility#CloseWindow ( bufname(bnum) )
+    endfor
 endfunction " >>>
 
 "/////////////////////////////////////////////////////////////////////////////
@@ -848,7 +942,7 @@ endfunction " >>>
 
 function exUtility#RecordCurrentBufNum() " <<<
     let short_bufname = fnamemodify(bufname('%'),":p:t")
-    if index( g:exUT_plugin_list, short_bufname, 0, 1 ) == -1 " compare ignore case
+    if index( g:ex_plugin_list, short_bufname, 0, 1 ) == -1 " compare ignore case
         let s:ex_editbuf_num = bufnr('%')
     elseif short_bufname !=# "-MiniBufExplorer-"
         let s:ex_pluginbuf_num = bufnr('%')
@@ -862,7 +956,7 @@ endfunction " >>>
 function exUtility#RecordSwapBufInfo() " <<<
     let bufnr = bufnr('%')
     let short_bufname = fnamemodify(bufname(bufnr),":p:t")
-    if buflisted(bufnr) && bufloaded(bufnr) && bufexists(bufnr) && index( g:exUT_plugin_list, short_bufname, 0, 1 ) == -1
+    if buflisted(bufnr) && bufloaded(bufnr) && bufexists(bufnr) && index( g:ex_plugin_list, short_bufname, 0, 1 ) == -1
         let s:ex_swap_buf_num = bufnr
         let s:ex_swap_buf_pos = getpos('.')
     endif
@@ -877,7 +971,7 @@ function exUtility#SwapToLastEditBuffer() " <<<
     let cur_bufnr = bufnr('%')
     let cru_short_bufname = fnamemodify(bufname('%'),":p:t")
 
-    if index( g:exUT_plugin_list, cru_short_bufname, 0, 1 ) != -1 " check it is plugin window or not
+    if index( g:ex_plugin_list, cru_short_bufname, 0, 1 ) != -1 " check it is plugin window or not
         call exUtility#WarningMsg("Buffer: " .bufname(cur_bufnr).  " can't be switch.")
         return
     endif
@@ -885,7 +979,7 @@ function exUtility#SwapToLastEditBuffer() " <<<
     " check if last buffer existed and listed, swap if accessable
     let last_bufnr = bufnr("#")
     let last_short_bufname = fnamemodify(bufname(last_bufnr),":p:t")
-    if buflisted(last_bufnr) && bufloaded(last_bufnr) && bufexists(last_bufnr) && index( g:exUT_plugin_list, last_short_bufname, 0, 1 ) == -1
+    if buflisted(last_bufnr) && bufloaded(last_bufnr) && bufexists(last_bufnr) && index( g:ex_plugin_list, last_short_bufname, 0, 1 ) == -1
         let tmp_swap_buf_pos = deepcopy(s:ex_swap_buf_pos)
         let tmp_swap_buf_nr = s:ex_swap_buf_num
         let s:ex_swap_buf_pos = getpos('.')
@@ -1017,7 +1111,7 @@ function exUtility#Kwbd(kwbdStage) " <<<
         " check it is plugin window, if yes, close it directly to prevent use \bd
         " close, reopen will loose plugin ability problem
         let cru_short_bufname = fnamemodify(bufname('%'),":p:t")
-        if index( g:exUT_plugin_list, cru_short_bufname, 0, 1 ) != -1 
+        if index( g:ex_plugin_list, cru_short_bufname, 0, 1 ) != -1 
             silent exec 'close'
             call exUtility#GotoEditBuffer()
             return
@@ -1243,6 +1337,22 @@ endfunction " >>>
 "     return simplify(full_file_name)
 " endfunction " >>>
 " } KEEPME end 
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#GetFileFilterByLanguage( lang_type_list ) " <<<
+    let file_filter = ''
+    for lang_type in a:lang_type_list 
+        if has_key (s:ex_exvim_lang_map, lang_type)
+            for file_type in s:ex_exvim_lang_map[lang_type] 
+                let file_filter .= file_type . ',' 
+            endfor
+        endif
+    endfor
+    return file_filter
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: 
@@ -2084,8 +2194,11 @@ function exUtility#UpdateVimFiles( type ) " <<<
     " endif
     " } DELME end 
 
-    " rule: if we have quick_gen_project_custom, use it first, else we use auto-gen one
+    " create id-lang map and quick_gen_project script 
+    call exUtility#CreateIDLangMap( s:ex_project_file_filter )
     let quick_gen_script = exUtility#CreateQuickGenProject()
+
+    " rule: if we have quick_gen_project_custom, use it first, else we use auto-gen one
     let quick_gen_custom = 'quick_gen_project_custom.' . suffix
     if findfile( quick_gen_custom, getcwd() ) != ""
         let quick_gen_script = quick_gen_custom
@@ -2276,60 +2389,48 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
+function exUtility#ResetLangMap( langmap_type, lang_type, file_type_list ) " <<<
+    let s:ex_{a:langmap_type}_lang_map[a:lang_type] = a:file_type_list
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#AddLangMap( langmap_type, lang_type, file_type_list ) " <<<
+    " we there have the lang_type, just add those new file types 
+    if has_key (s:ex_{a:langmap_type}_lang_map, a:lang_type)
+        for new_file_type in a:file_type_list
+            if index ( s:ex_{a:langmap_type}_lang_map[a:lang_type], new_file_type ) == -1
+                silent call add ( s:ex_{a:langmap_type}_lang_map[a:lang_type], new_file_type )
+            endif
+        endfor
+    else
+        let s:ex_{a:langmap_type}_lang_map[a:lang_type] = a:file_type_list
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
 function exUtility#GetLangType() " <<<
     if exists('g:exES_LangType')
         let lang_list = []
         if g:exES_LangType == 'auto' " if user don't specific language type, use filter as language type.
+            " get filter_list and walk through it
             let filter_list = split( s:ex_project_file_filter, ',' )
-            for item in filter_list 
-                if item =~# '^c$\|^cpp$\|^cxx$\|^c++$\|^C$\|^cc$\|^h$\|^H$\|^hh$\|^hxx$\|^hpp$\|^inl$'
-                    if index ( lang_list, 'c' ) == -1
-                        silent call add ( lang_list, 'c' )
+            for filter in filter_list 
+                " walk through the language map to get language type and its file type list
+                for [lang_type,file_type_list] in items (s:ex_exvim_lang_map)
+                    " check if the filter is in the file_type_list of the language
+                    if index ( file_type_list, filter ) != -1
+                        " add the language type to language list if not exists
+                        if index ( lang_list, lang_type ) == -1
+                            silent call add ( lang_list, lang_type )
+                        endif
                     endif
-                    if index ( lang_list, 'cpp' ) == -1
-                        silent call add ( lang_list, 'cpp' )
-                    endif
-                elseif item =~# '^cs$'
-                    if index ( lang_list, 'c#' ) == -1
-                        silent call add ( lang_list, 'c#' )
-                    endif
-                elseif item =~# '^hlsl$\|^vsh$\|^psh$\|^fx$\|^fxh$\|^cg$\|^shd$\|^glsl$'
-                    if index ( lang_list, 'shader' ) == -1
-                        silent call add ( lang_list, 'shader' )
-                    endif
-                elseif item =~# '^py$\|^pyw$'
-                    if index ( lang_list, 'python' ) == -1
-                        silent call add ( lang_list, 'python' )
-                    endif
-                elseif item =~# '^vim$'
-                    if index ( lang_list, 'vim' ) == -1
-                        silent call add ( lang_list, 'vim' )
-                    endif
-                elseif item =~# '^m$'
-                    if index ( lang_list, 'math' ) == -1
-                        silent call add ( lang_list, 'math' )
-                    endif
-                elseif item =~# '^uc$'
-                    if index ( lang_list, 'uc' ) == -1
-                        silent call add ( lang_list, 'uc' )
-                    endif
-                elseif item =~# '^js$'
-                    if index ( lang_list, 'javascript' ) == -1
-                        silent call add ( lang_list, 'javascript' )
-                    endif
-                elseif item =~# '^java$'
-                    if index ( lang_list, 'java' ) == -1
-                        silent call add ( lang_list, 'java' )
-                    endif
-                elseif item =~# '^html$\|^xml$'
-                    if index ( lang_list, 'html' ) == -1
-                        silent call add ( lang_list, 'html' )
-                    endif
-                elseif item =~# '^lua$'
-                    if index ( lang_list, 'lua' ) == -1
-                        silent call add ( lang_list, 'lua' )
-                    endif
-                endif
+                endfor
             endfor
         else
             let lang_list = split( g:exES_LangType, ',' )
@@ -2431,51 +2532,43 @@ function exUtility#GetCtagsOptions( lang_type ) " <<<
     " process language list
     let lang_list = split( a:lang_type, ' ' )
 
-    " first check kinds, since some language use same-kinds
+    " first check kinds for each language
     if a:lang_type =~# '\<c\>\|\<shader\>'
         let ctags_kinds.=' --c-kinds=+p'
     endif
-
-    " check other things
-    if index ( lang_list, 'c' ) >= 0
-        let ctags_languages.='c,'
-    endif
-    if index ( lang_list, 'cpp' ) >= 0
+    if a:lang_type =~# '\<cpp\>'
         let ctags_kinds.=' --c++-kinds=+p'
-        let ctags_languages.='c++,'
-        let ctags_langmap.='c++:+.inl,'
     endif
-    if index ( lang_list, 'c#' ) >= 0
-        let ctags_languages.='c#,'
-    endif
+
+    " process general language options
+    for lang_type in lang_list
+        if has_key ( s:ex_ctags_lang_map, lang_type ) && has_key ( s:ex_exvim_lang_map, lang_type )
+            " convert language type first
+            let ctags_lang_type = lang_type
+            if lang_type ==# 'cpp'
+                let ctags_lang_type = 'c++'
+            endif
+
+            " add languages type.
+            let ctags_languages.=ctags_lang_type.','
+
+            " add langmap
+            for file_type in s:ex_exvim_lang_map[lang_type]
+                if index ( s:ex_ctags_lang_map[lang_type], file_type ) == -1
+                    let ctags_langmap.=ctags_lang_type.':+.'.file_type.','
+                endif
+            endfor
+        endif
+    endfor
+
+    " process special language options
     if index ( lang_list, 'shader' ) >= 0
         let ctags_languages.='c,'
-        let ctags_langmap.='c:+.fx,c:+.fxh,c:+.hlsl,c:+.vsh,c:+.psh,c:+.cg,c:+.shd,'
-    endif
-    if index ( lang_list, 'python' ) >= 0
-        let ctags_languages.='python,'
-    endif
-    if index ( lang_list, 'vim' ) >= 0
-        let ctags_languages.='vim,'
-    endif
-    if index ( lang_list, 'math' ) >= 0
-        let ctags_languages.='math,'
-    endif
-    if index ( lang_list, 'uc' ) >= 0
-        let ctags_languages.='uc,'
-    endif
-    if index ( lang_list, 'javascript' ) >= 0
-        let ctags_languages.='javascript,'
-        let ctags_langmap.='javascript:+.as,'
-    endif
-    if index ( lang_list, 'java' ) >= 0
-        let ctags_languages.='java,'
-    endif
-    if index ( lang_list, 'html' ) >= 0
-        let ctags_languages.='html,'
-    endif
-    if index ( lang_list, 'lua' ) >= 0
-        let ctags_languages.='lua,'
+        if has_key (s:ex_exvim_lang_map, 'shader')
+            for file_type in s:ex_exvim_lang_map['shader'] 
+                let ctags_langmap.='c:+.'.file_type.',' 
+            endfor
+        endif
     endif
 
     " return ctags_options
@@ -2530,9 +2623,6 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#CreateQuickGenProject() " <<<
-    " create id-lang map first
-    call exUtility#CreateIDLangMap( s:ex_project_file_filter )
-
     " init variables
     let text_list = []
     let lang_type = exUtility#GetLangType()
@@ -3460,7 +3550,7 @@ endfunction " >>>
 " --ex_IsFunctionalbuf--
 " return true if the buf is a functional buf
 function exUtility#IsFunctionalbuf(Buf_Name) " <<<
-    return index( g:exUT_plugin_list, fnamemodify(a:Buf_Name,":p:t") ) >=0
+    return index( g:ex_plugin_list, fnamemodify(a:Buf_Name,":p:t") ) >=0
 endfunction " >>>
 
 "/////////////////////////////////////////////////////////////////////////////

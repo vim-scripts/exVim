@@ -23,8 +23,8 @@ let loaded_exutility=1
 " Desc: store the plugins buffer name, so we can ensure not recore name as edit-buffer
 " ------------------------------------------------------------------ 
 
-if !exists('g:exUT_plugin_list')
-    let g:exUT_plugin_list = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]"] 
+if !exists('g:ex_plugin_list')
+    let g:ex_plugin_list = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]"] 
 endif
 
 " ------------------------------------------------------------------ 
@@ -53,6 +53,14 @@ if !exists('g:ex_comment_lable_keyword')
     let g:ex_comment_lable_keyword .= 'HACK OPTME HARDCODE REFACTORING DUPLICATE REDUNDANCY ' " for refactoring
 endif
 
+" ------------------------------------------------------------------ 
+" Desc: default supported languages 
+" ------------------------------------------------------------------ 
+
+if !exists ( "g:ex_default_langs" )
+    let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'math', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug' ] 
+endif
+
 " ======================================================== 
 " local variable initialization
 " ======================================================== 
@@ -62,6 +70,13 @@ endif
 " ------------------------------------------------------------------ 
 
 let s:ex_HighlightsInited = 0 
+
+" ======================================================== 
+" function settings
+" ======================================================== 
+
+silent call exUtility#SetProjectFilter ( "file_filter", exUtility#GetFileFilterByLanguage (g:ex_default_langs) )
+silent call exUtility#SetProjectFilter ( "dir_filter", "" ) " null-string means include all directories
 
 "/////////////////////////////////////////////////////////////////////////////
 " functions
@@ -84,7 +99,8 @@ function s:UpdateSyntaxHighlights() " <<<
     hi default ex_SynHL3 gui=none guibg=LightRed term=none cterm=none ctermbg=LightRed
     hi default ex_SynHL4 gui=none guibg=LightGreen term=none cterm=none ctermbg=LightGreen
 
-    hi default ex_SynSelectLine gui=none guibg=#bfffff term=none cterm=none ctermbg=LightCyan
+    " hi default ex_SynSelectLine gui=none guibg=#bfffff term=none cterm=none ctermbg=LightCyan
+    hi default link ex_SynSelectLine CursorLine  
     hi default ex_SynConfirmLine gui=none guibg=#ffe4b3 term=none cterm=none ctermbg=DarkYellow
     hi default ex_SynObjectLine gui=none guibg=#ffe4b3 term=none cterm=none ctermbg=DarkYellow
 
@@ -134,6 +150,20 @@ function s:UpdateSyntaxHighlights() " <<<
 
     hi default exCS_SynQfNumber gui=none guifg=Red term=none cterm=none ctermfg=Red
 
+    " ======================================================== 
+    " Dark Scheme Special
+    " ======================================================== 
+
+    if &background == "dark"
+        hi ex_SynHL1 gui=none guibg=DarkCyan term=none cterm=none ctermbg=DarkCyan
+        hi ex_SynHL2 gui=none guibg=DarkMagenta term=none cterm=none ctermbg=DarkMagenta
+        hi ex_SynHL3 gui=none guibg=DarkRed term=none cterm=none ctermbg=DarkRed
+        hi ex_SynHL4 gui=none guibg=DarkGreen term=none cterm=none ctermbg=DarkGreen
+
+        hi ex_SynConfirmLine gui=none guibg=DarkRed term=none cterm=none ctermbg=DarkRed
+        hi ex_SynObjectLine gui=none guibg=DarkRed term=none cterm=none ctermbg=DarkRed
+    endif
+
     " update custom environment
     if exists('*g:ex_CustomHighlight')
         call g:ex_CustomHighlight()
@@ -161,17 +191,17 @@ endif
 "/////////////////////////////////////////////////////////////////////////////
 
 " highlight commands
-command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL1 call exUtility#Highlight_Text(1, "<args>")
-command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL2 call exUtility#Highlight_Text(2, "<args>")
-command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL3 call exUtility#Highlight_Text(3, "<args>")
-command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL4 call exUtility#Highlight_Text(4, "<args>")
+command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL1 call exUtility#Highlight_Text(1, '<args>')
+command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL2 call exUtility#Highlight_Text(2, '<args>')
+command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL3 call exUtility#Highlight_Text(3, '<args>')
+command -narg=? -complete=customlist,exUtility#CompleteBySymbolFile HL4 call exUtility#Highlight_Text(4, '<args>')
 
 " project gen/copy/build
-command -narg=? -complete=customlist,exUtility#CompleteGMakeArgs GMake call exUtility#GCCMake("<args>")
-command -narg=? -complete=customlist,exUtility#CompleteGMakeArgs SMake call exUtility#ShaderMake("<args>")
-command -narg=* -complete=customlist,exUtility#CompleteVMakeArgs VMake call exUtility#VCMake("<args>")
+command -narg=? -complete=customlist,exUtility#CompleteGMakeArgs GMake call exUtility#GCCMake('<args>')
+command -narg=? -complete=customlist,exUtility#CompleteGMakeArgs SMake call exUtility#ShaderMake('<args>')
+command -narg=* -complete=customlist,exUtility#CompleteVMakeArgs VMake call exUtility#VCMake('<args>')
 command -narg=* VBat call exUtility#VCMakeBAT(<f-args>)
-command -narg=? -complete=customlist,exUtility#CompleteUpdateArgs Update call exUtility#UpdateVimFiles("<args>")
+command -narg=? -complete=customlist,exUtility#CompleteUpdateArgs Update call exUtility#UpdateVimFiles('<args>')
 command -narg=? QCopy call exUtility#CopyQuickGenProject()
 
 " inherits genreate
@@ -181,9 +211,9 @@ command -narg=1 -complete=customlist,exUtility#CompleteBySymbolFile GVC call exU
 
 " code writing
 command LINE call exUtility#PutLine(86, '-')
-command -narg=1 NSS call exUtility#PutNamespaceStart("<args>")
-command -narg=1 NSE call exUtility#PutNamespaceEnd("<args>")
-command -range -narg=1 NS call exUtility#PutNamespace("<args>", <line1>, <line2>)
+command -narg=1 NSS call exUtility#PutNamespaceStart('<args>')
+command -narg=1 NSE call exUtility#PutNamespaceEnd('<args>')
+command -range -narg=1 NS call exUtility#PutNamespace('<args>', <line1>, <line2>)
 command HEADER call exUtility#PutHeader()
 command SEP call exUtility#PutSeparate()
 command SEG call exUtility#PutSegment()
@@ -192,14 +222,14 @@ command DEF call exUtility#PutDefine()
 command DEC call exUtility#PutDeclaration()
 command DES call exUtility#PutDescription()
 command MAIN call exUtility#PutMain()
-command -narg=1 CLASS call exUtility#PutClass( "class", "<args>" )
-command -narg=1 STRUCT call exUtility#PutClass( "struct", "<args>" )
+command -narg=1 CLASS call exUtility#PutClass( "class", '<args>' )
+command -narg=1 STRUCT call exUtility#PutClass( "struct", '<args>' )
 
 " src-highlight
 command -range=% SHL call exUtility#SrcHighlight( <line1>, <line2> )
 
 " text mark
-command -range -narg=1 -complete=customlist,exUtility#CompleteMKArgs MK call exUtility#MarkText("<args>", <line1>, <line2> )
+command -range -narg=1 -complete=customlist,exUtility#CompleteMKArgs MK call exUtility#MarkText('<args>', <line1>, <line2> )
 
 "/////////////////////////////////////////////////////////////////////////////
 " finish

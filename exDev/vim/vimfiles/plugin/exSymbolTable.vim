@@ -138,9 +138,9 @@ function s:exSL_OpenWindow( short_title ) " <<<
     let title = '__exSL_' . s:exSL_short_title . 'Window__'
     " open window
     if g:exSL_use_vertical_window
-        call exUtility#OpenWindow( title, g:exSL_window_direction, g:exSL_window_width, g:exSL_use_vertical_window, g:exSL_edit_mode, s:exSL_backto_editbuf, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exSL_window_direction, g:exSL_window_width, g:exSL_use_vertical_window, g:exSL_edit_mode, 1, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
     else
-        call exUtility#OpenWindow( title, g:exSL_window_direction, g:exSL_window_height, g:exSL_use_vertical_window, g:exSL_edit_mode, s:exSL_backto_editbuf, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exSL_window_direction, g:exSL_window_height, g:exSL_use_vertical_window, g:exSL_edit_mode, 1, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -161,14 +161,13 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exSL_ToggleWindow( short_title ) " <<<
-    " read the file first
-    if s:exSL_get_symbol_file
-        let s:exSL_get_symbol_file = 0
-        if exists('g:exES_Symbol')
+    " read the file first, if file name changes, reset title.
+    if exists('g:exES_Symbol') 
+        if s:exSL_select_title !=# g:exES_Symbol
             let s:exSL_select_title = g:exES_Symbol
-        else
-            call exUtility#WarningMsg('not found symbol file')
         endif
+    else
+        call exUtility#WarningMsg('not found symbol file')
     endif
 
     " assignment the title
@@ -198,9 +197,9 @@ function s:exSL_ToggleWindow( short_title ) " <<<
     " toggle exSL window
     let title = s:exSL_cur_title
     if g:exSL_use_vertical_window
-        call exUtility#ToggleWindow( title, g:exSL_window_direction, g:exSL_window_width, g:exSL_use_vertical_window, 'none', s:exSL_backto_editbuf, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exSL_window_direction, g:exSL_window_width, g:exSL_use_vertical_window, 'none', 0, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
     else
-        call exUtility#ToggleWindow( title, g:exSL_window_direction, g:exSL_window_height, g:exSL_use_vertical_window, 'none', s:exSL_backto_editbuf, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exSL_window_direction, g:exSL_window_height, g:exSL_use_vertical_window, 'none', 0, 'g:exSL_Init'.s:exSL_short_title.'Window', 'g:exSL_Update'.s:exSL_short_title.'Window' )
     endif
 endfunction " >>>
 

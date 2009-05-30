@@ -93,20 +93,6 @@ if !exists('g:exPJ_edit_mode')
     let g:exPJ_edit_mode = 'replace'
 endif
 
-" ------------------------------------------------------------------ 
-" Desc: set defualt filter
-" ------------------------------------------------------------------ 
-
-if !exists('g:exPJ_default_filter')
-    let g:exPJ_default_filter  = 'c,cpp,cxx,c++,C,cc,'
-    let g:exPJ_default_filter .= 'h,H,hh,hxx,hpp,inl,'
-    let g:exPJ_default_filter .= 'uc,'
-    let g:exPJ_default_filter .= 'hlsl,vsh,psh,glsl,'
-    let g:exPJ_default_filter .= 'dox,doxygen,'
-    let g:exPJ_default_filter .= 'ini,cfg,'
-    let g:exPJ_default_filter .= 'mk,err,exe,'
-endif
-
 " ======================================================== 
 " local variable initialization
 " ======================================================== 
@@ -126,9 +112,6 @@ let s:exPJ_cur_filename = '__exPJ_SelectWindow__'
 let s:exPJ_cursor_line = 0
 let s:exPJ_cursor_col = 0
 let s:exPJ_need_update_select_window = 0
-
-silent call exUtility#SetProjectFilter ( "file_filter", g:exPJ_default_filter )
-silent call exUtility#SetProjectFilter ( "dir_filter", "" ) " null-string means include all directories
 
 "/////////////////////////////////////////////////////////////////////////////
 " function defines
@@ -150,9 +133,6 @@ function s:exPJ_OpenWindow( short_title ) " <<<
             if s:exPJ_short_title == 'Select'
                 let _title = s:exPJ_cur_filename
             endif
-            if bufwinnr(_title) != -1
-                call exUtility#CloseWindow(_title)
-            endif
             let s:exPJ_short_title = a:short_title
         endif
     endif
@@ -164,9 +144,9 @@ function s:exPJ_OpenWindow( short_title ) " <<<
     endif
     " open window
     if g:exPJ_use_vertical_window
-        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, g:exPJ_edit_mode, g:exPJ_backto_editbuf, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, g:exPJ_edit_mode, 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     else
-        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, g:exPJ_edit_mode, g:exPJ_backto_editbuf, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, g:exPJ_edit_mode, 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -206,10 +186,12 @@ function s:exPJ_ToggleWindow( short_title ) " <<<
     if a:short_title == 'Select'
         let title = s:exPJ_cur_filename
     endif
+
+    " when toggle on, we expect the cursor can be focus on that window.
     if g:exPJ_use_vertical_window
-        call exUtility#ToggleWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, 'none', g:exPJ_backto_editbuf, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, 'none', 0, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     else
-        call exUtility#ToggleWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, 'none', g:exPJ_backto_editbuf, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#ToggleWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, 'none', 0, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -322,7 +304,7 @@ endfunction
 " ------------------------------------------------------------------ 
 
 function g:exPJ_InitSelectWindow() " <<<
-    silent! setlocal filetype=ft_exproject
+    silent! setlocal filetype=ex_filetype
     silent! setlocal buftype=
     silent! setlocal cursorline
 
@@ -404,19 +386,25 @@ endfunction " >>>
 function s:exPJ_OpenProject(project_name) " <<<
     " set and find project file
     if a:project_name != ''
+        " if we open a different project, close the old one first.
+        if a:project_name !=# s:exPJ_cur_filename
+            if bufwinnr(s:exPJ_cur_filename) != -1
+                call exUtility#CloseWindow(s:exPJ_cur_filename)
+            endif
+        endif
+
+        " reset project filename and title.
         let s:exPJ_cur_filename = a:project_name
         let s:exPJ_select_title = s:exPJ_cur_filename
     endif
 
     " open project select window
     let old_edit_mode = g:exPJ_edit_mode
-    let old_bacto_editbuf = g:exPJ_backto_editbuf
-
     let g:exPJ_edit_mode = 'none'
-    let g:exPJ_backto_editbuf = 0
+
     call s:exPJ_OpenWindow('Select')
+
     let g:exPJ_edit_mode = old_edit_mode
-    let g:exPJ_backto_editbuf = old_bacto_editbuf
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -463,12 +451,8 @@ function s:exPJ_CreateProject(with_dialog) " <<<
         let entry_dir = g:exES_CWD
     endif
 
-
-    let old_bacto_editbuf = g:exPJ_backto_editbuf
-    let g:exPJ_backto_editbuf = 0
     echon "Creating exProject: " . entry_dir . "\r"
     call s:exPJ_OpenWindow('Select')
-    let g:exPJ_backto_editbuf = old_bacto_editbuf
 
     " create filname list and filanmetag list
     " KEEPME: let filename_list = [[],[],[]] " NOTE: 0 is the filenametag, 1 is the filenamelist_cwd, 2 is the filenamelist_vimfiles
@@ -643,8 +627,12 @@ function s:exPJ_RefreshProject( with_dialog ) " <<<
 
     call s:exPJ_UpdateFilters()
 
-    " get filter
     if a:with_dialog == 1
+        " get filter
+        let project_file_filter = exUtility#GetProjectFilter ( "file_filter" )
+        let filter = inputdialog( 'Enter the filters: sample(cpp c inl): ', project_file_filter, 'cancle')
+
+        "
         if filter == 'cancle'
             return
         else
@@ -948,6 +936,14 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exPJ_GotoCurrentFile( jump_to_project_window ) " <<<
+    " close the ex-plugin window
+    if &filetype == "ex_filetype"
+        silent exec "normal \<Esc>"
+    endif
+
+    " first make sure we are in edit buffer.
+    call exUtility#GotoEditBuffer()
+
     " get current buffer name then jump
     let cur_filename = fnamemodify(bufname("%") , ":t")
     let cur_filefullpath = fnamemodify(bufname("%") , ":p")
@@ -1005,9 +1001,10 @@ endfunction " >>>
 " Commands
 "/////////////////////////////////////////////////////////////////////////////
 
-command -narg=? -complete=file EXProject call s:exPJ_OpenProject("<args>")
+command -narg=? -complete=file EXProject call s:exPJ_OpenProject('<args>')
 command ExpjSelectToggle call s:exPJ_ToggleWindow('Select')
 command ExpjGotoCurrentFile call s:exPJ_GotoCurrentFile(1)
+command ExpjUpdateFilters call s:exPJ_UpdateFilters()
 
 "/////////////////////////////////////////////////////////////////////////////
 " finish

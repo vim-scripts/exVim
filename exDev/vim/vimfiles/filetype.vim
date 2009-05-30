@@ -9,6 +9,9 @@
 "   au defines
 " /////////////////////////////////////////////////////////////////////////////
 
+" additional cpp file type
+au BufNewFile,BufRead *.ipp       setf cpp
+
 " High Level Shader Language
 au BufNewFile,BufRead *.hlsl,*.fx,*.fxh,*.cg,*.vsh,*.psh,*.shd,*.glsl       setf hlsl
 
