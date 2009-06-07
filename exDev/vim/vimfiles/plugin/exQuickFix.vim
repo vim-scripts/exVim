@@ -210,7 +210,22 @@ endfunction " >>>
 function s:exQF_SwitchWindow( short_title ) " <<<
     let title = '__exQF_' . a:short_title . 'Window__'
     if bufwinnr(title) == -1
+        " save the old height & width
+        let old_height = g:exQF_window_height
+        let old_width = g:exQF_window_width
+
+        " use the width & height of current window if it is same plugin window.
+        if bufname ('%') ==# s:exQF_select_title || bufname ('%') ==# s:exQF_quick_view_title
+            let g:exQF_window_height = winheight('.')
+            let g:exQF_window_width = winwidth('.')
+        endif
+
+        " switch to the new plugin window
         call s:exQF_ToggleWindow(a:short_title)
+
+        " recover the width and height
+        let g:exQF_window_height = old_height
+        let g:exQF_window_width = old_width
     endif
 endfunction " >>>
 
@@ -262,17 +277,22 @@ function g:exQF_InitSelectWindow() " <<<
     syntax match ex_SynLineNr contained '(\d\+)'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exQF_GotoInSelectWindow()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exQF_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exQF_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exQF_GotoInSelectWindow()<CR>"
     nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exQF_GotoInSelectWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exQF_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exQF_ToggleWindow('Select')<CR>
 
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exQF_SwitchWindow('Select')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exQF_SwitchWindow('QuickView')<CR>
 
-    nnoremap <silent> <buffer> <C-Up> :call exUtility#CursorJump( '\(error\\|warning\)', 'up' )<CR>
-    nnoremap <silent> <buffer> <C-Down> :call exUtility#CursorJump( '\(error\\|warning\)', 'down' )<CR>
-    nnoremap <silent> <buffer> <leader>p :call <SID>exQF_PasteQuickFixResult()<CR>
+    nnoremap <buffer> <silent> <C-Up> :call exUtility#CursorJump( '\(error\\|warning\)', 'up' )<CR>
+    nnoremap <buffer> <silent> <C-Down> :call exUtility#CursorJump( '\(error\\|warning\)', 'down' )<CR>
+
+    " let \p, p (including visual) can paste error and read to the quick fix list.
+    nnoremap <buffer> <silent> <leader>p :call <SID>exQF_PasteQuickFixResult('*')<CR>
+    nnoremap <buffer> <silent> p :call <SID>exQF_PasteQuickFixResult('"')<CR>
+    vnoremap <buffer> <silent> <leader>p :call <SID>exQF_VisualPasteQuickFixResult('*')<CR>
+    vnoremap <buffer> <silent> p :call <SID>exQF_VisualPasteQuickFixResult('"')<CR>
 
     " autocmd
     au CursorMoved <buffer> :call exUtility#HighlightSelectLine()
@@ -301,9 +321,9 @@ endfunction " >>>
 " Desc: Paste the error result ro quickfix
 " ------------------------------------------------------------------ 
 
-function s:exQF_PasteQuickFixResult() " <<<
+function s:exQF_PasteQuickFixResult(register) " <<<
     silent exec '1,$d _'
-    silent put! = getreg('*')
+    silent put! = getreg(a:register)
     silent normal gg
 
     " choose compiler automatically
@@ -317,6 +337,15 @@ function s:exQF_PasteQuickFixResult() " <<<
     silent exec 'cd '.s:exQF_compile_dir
     silent exec 'cgetb'
     silent exec 'cd '.cur_dir
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: Visual Paste the error result ro quickfix
+" ------------------------------------------------------------------ 
+
+function s:exQF_VisualPasteQuickFixResult(register) range " <<<
+    call exUtility#WarningMsg('visual-paste not allowed! change to paste operation.')
+    call s:exQF_PasteQuickFixResult(a:register)
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -360,6 +389,10 @@ function s:exQF_ChooseCompiler() " <<<
         silent set errorformat=%D%\\d%\\+\>------\ %.%#Project:\ %f%.%#%\\,%.%#
         silent set errorformat+=%X%\\d%\\+\>%.%#%\\d%\\+\ error(s)%.%#%\\d%\\+\ warning(s)
         silent set errorformat+=%\\d%\\+\>%f(%l)\ :\ %t%*\\D%n:\ %m
+    elseif s:exQF_compiler == 'gcc'
+        " this is for exGlobaSearch result, some one may copy the global search result to exQuickFix
+        silent set errorformat+=%f:%l:%m
+        silent set errorformat+=%f(%l\\,%c):\ %m " fxc shader error-format
     endif
 
     "
@@ -379,12 +412,6 @@ function s:exQF_GetQuickFixResult( file_name ) " <<<
         let full_file_name = a:file_name
     endif
     if findfile(full_file_name) != ''
-        " if we have other exUtility window, close it
-        " this code can't be disable, or the window jump will be wrong
-        if &filetype == "ex_filetype"
-            silent exec "normal \<Esc>"
-        endif
-
         " save the file size end file name
         let s:exQF_error_file_size = getfsize(full_file_name)
         let s:exQF_cur_filename = full_file_name
@@ -440,9 +467,10 @@ function g:exQF_InitQuickViewWindow() " <<<
     syntax match ex_SynLineNr contained '(\d\+)'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exQF_GotoInQuickViewWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exQF_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exQF_ToggleWindow('QuickView')<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exQF_ToggleWindow('QuickView')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exQF_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exQF_GotoInQuickViewWindow()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exQF_GotoInQuickViewWindow()<CR>
 
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exQF_SwitchWindow('Select')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exQF_SwitchWindow('QuickView')<CR>
@@ -615,4 +643,4 @@ command ExqfQuickViewToggle call s:exQF_ToggleWindow('QuickView')
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

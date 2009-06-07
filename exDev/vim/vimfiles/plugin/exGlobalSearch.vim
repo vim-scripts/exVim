@@ -85,14 +85,6 @@ if !exists('g:exGS_close_when_selected')
 endif
 
 " ------------------------------------------------------------------ 
-" Desc: go and close exTagSelect window
-" ------------------------------------------------------------------ 
-
-if !exists('g:exGS_stack_close_when_selected')
-    let g:exGS_stack_close_when_selected = 0
-endif
-
-" ------------------------------------------------------------------ 
 " Desc: use syntax highlight for search result
 " ------------------------------------------------------------------ 
 
@@ -109,6 +101,22 @@ if !exists('g:exGS_edit_mode')
     let g:exGS_edit_mode = 'replace'
 endif
 
+" ------------------------------------------------------------------ 
+" Desc: set if auto sort result if the result less than g:exGS_lines_for_autosort lines 
+" ------------------------------------------------------------------ 
+
+if !exists('g:exGS_auto_sort')
+    let g:exGS_auto_sort = 0
+endif
+
+" ------------------------------------------------------------------ 
+" Desc: less than ? lines, will trigger auto sort
+" ------------------------------------------------------------------ 
+
+if !exists('g:exGS_lines_for_autosort')
+    let g:exGS_lines_for_autosort = 500
+endif
+
 " ======================================================== 
 " local variable initialization
 " ======================================================== 
@@ -118,7 +126,6 @@ endif
 " ------------------------------------------------------------------ 
 
 let s:exGS_select_title = '__exGS_SelectWindow__'
-let s:exGS_stack_title = '__exGS_StackWindow__'
 let s:exGS_quick_view_title = '__exGS_QuickViewWindow__'
 let s:exGS_short_title = 'Select'
 
@@ -130,23 +137,14 @@ let s:exGS_fold_start = '<<<<<<'
 let s:exGS_fold_end = '>>>>>>'
 let s:exGS_ignore_case = 1
 let s:exGS_need_search_again = 0
+let s:exGS_need_push_search_result = 0
+let s:exGS_cur_search_pattern = ''
 
 " ------------------------------------------------------------------ 
 " Desc: select variable
 " ------------------------------------------------------------------ 
 
 let s:exGS_select_idx = 1
-
-" ------------------------------------------------------------------ 
-" Desc: stack variable
-" ------------------------------------------------------------------ 
-
-let s:exGS_need_update_stack_window = 0
-let s:exGS_stack_idx = 0
-let s:exGS_search_state_tmp = {'pattern':'', 'pattern_cursor_pos':[-1,-1,-1,-1], 'pattern_file_name':'', 'entry_cursor_pos':[-1,-1,-1,-1], 'entry_file_name':'', 'stack_preview':''}
-let s:exGS_search_stack_list = [{'pattern':'exGS_StartPoint', 'pattern_cursor_pos':[-1,-1,-1,-1], 'pattern_file_name':'', 'entry_cursor_pos':[-1,-1,-1,-1], 'entry_file_name':'', 'stack_preview':''}]
-let s:exGS_need_push_search_result = 0
-let s:exGS_last_jump_method = "to_tag"
 
 " ------------------------------------------------------------------ 
 " Desc: quick view variable
@@ -163,6 +161,15 @@ let s:exGS_quick_view_search_pattern = ''
 " ======================================================== 
 " general functions
 " ======================================================== 
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exGS_ClearEntryToggleWindow( title ) " <<<
+    call g:exJS_ClearEntryStateList ()
+    call s:exGS_ToggleWindow ( a:title )
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: Open exGlobalSearch window 
@@ -224,7 +231,22 @@ endfunction " >>>
 function s:exGS_SwitchWindow( short_title ) " <<<
     let title = '__exGS_' . a:short_title . 'Window__'
     if bufwinnr(title) == -1
+        " save the old height & width
+        let old_height = g:exGS_window_height
+        let old_width = g:exGS_window_width
+
+        " use the width & height of current window if it is same plugin window.
+        if bufname ('%') ==# s:exGS_select_title || bufname ('%') ==# s:exGS_quick_view_title
+            let g:exGS_window_height = winheight('.')
+            let g:exGS_window_width = winwidth('.')
+        endif
+
+        " switch to the new plugin window
         call s:exGS_ToggleWindow(a:short_title)
+
+        " recover the width and height
+        let g:exGS_window_height = old_height
+        let g:exGS_window_width = old_width
     endif
 endfunction " >>>
 
@@ -262,7 +284,6 @@ function s:exGS_Goto() " <<<
         exe keepjumps_cmd . ' silent e ' . file_name
     endif
     exec keepjumps_cmd . ' call cursor(line_num, 1)'
-    let cursor_pos = getpos(".")
 
     " jump to the pattern if the code have been modified
     let pattern = strpart(line, idx+2)
@@ -271,25 +292,22 @@ function s:exGS_Goto() " <<<
         call exUtility#WarningMsg('search pattern not found: ' . pattern)
     endif
 
-    " push tag state to tag stack
+    " push tag to jump stack if needed, otherwise set last jump stack
+    let stack_info = {}
+    let preview = getline(".")
+    let stack_info.preview = strpart( preview, match(preview, '\S') )
+    let stack_info.file_name = bufname('%')
+    let cur_pos = getpos(".")
+    let stack_info.cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col
+    let stack_info.jump_method = ''
+    let stack_info.keyword = ''
+    let stack_info.taglist = []
+    let stack_info.tagidx = -1
     if s:exGS_need_push_search_result
         let s:exGS_need_push_search_result = 0
-
-        " set last stack_idx states
-        let s:exGS_search_stack_list[s:exGS_stack_idx].entry_file_name = s:exGS_search_state_tmp.entry_file_name 
-        let s:exGS_search_stack_list[s:exGS_stack_idx].entry_cursor_pos = s:exGS_search_state_tmp.entry_cursor_pos
-        let s:exGS_search_stack_list[s:exGS_stack_idx].stack_preview = s:exGS_search_state_tmp.stack_preview
-
-        " push stack
-        let s:exGS_search_state_tmp.entry_file_name = ''
-        let s:exGS_search_state_tmp.entry_cursor_pos = [-1,-1,-1,-1]
-        let s:exGS_search_state_tmp.stack_preview = ''
-        let s:exGS_search_state_tmp.pattern_file_name = file_name
-        let s:exGS_search_state_tmp.pattern_cursor_pos = cursor_pos
-        call s:exGS_PushStack(s:exGS_search_state_tmp)
+        call g:exJS_PushJumpStack (stack_info)
     else
-        let s:exGS_search_stack_list[s:exGS_stack_idx].pattern_file_name = file_name
-        let s:exGS_search_stack_list[s:exGS_stack_idx].pattern_cursor_pos = cursor_pos
+        call g:exJS_SetLastJumpStack (stack_info)
     endif
 
     " go back if needed
@@ -425,6 +443,9 @@ function s:exGS_MapPickupResultKeys() " <<<
     vnoremap <buffer> <silent> <LocalLeader>gd <ESC>:call <SID>exGS_ShowPickedResultVisualMode('', 'replace', '', 1)<CR>
     vnoremap <buffer> <silent> <LocalLeader>gar <ESC>:call <SID>exGS_ShowPickedResultVisualMode('', 'append', '', 0)<CR>
     vnoremap <buffer> <silent> <LocalLeader>gad <ESC>:call <SID>exGS_ShowPickedResultVisualMode('', 'append', '', 1)<CR>
+
+    nnoremap <buffer> <silent> <LocalLeader>sr :call <SID>exGS_SortSearchResults()<CR>
+    vnoremap <buffer> <silent> <LocalLeader>sr :call <SID>exGS_SortSearchResultsByRange()<CR>
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -446,12 +467,11 @@ function g:exGS_InitSelectWindow() " <<<
     syntax match ex_SynLineNr '\d\+:'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exGS_GotoInSelectWindow()<CR>
-    nnoremap <silent> <buffer> <2-LeftMouse>   \|:call <SID>exGS_GotoInSelectWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exGS_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exGS_ToggleWindow('Select')<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exGS_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exGS_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exGS_GotoInSelectWindow()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exGS_GotoInSelectWindow()<CR>
 
-    nnoremap <buffer> <silent> <C-Up>   :call <SID>exGS_SwitchWindow('Stack')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exGS_SwitchWindow('QuickView')<CR>
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exGS_SwitchWindow('Select')<CR>
 
@@ -483,6 +503,31 @@ function g:exGS_UpdateSelectWindow() " <<<
     call exUtility#HighlightConfirmLine()
 endfunction " >>>
 
+
+" ------------------------------------------------------------------ 
+" Desc: compare the search result line. (by YJR)
+" ------------------------------------------------------------------ 
+
+function! s:exGS_SearchResultComp(line1, line2) " <<<
+    let line1lst = matchlist(a:line1 , '^\([^:]*\):\(\d\+\):')
+    let line2lst = matchlist(a:line2 , '^\([^:]*\):\(\d\+\):')
+    if empty(line1lst) && empty(line2lst)
+        return 0
+    elseif empty(line1lst)
+        return -1
+    elseif empty(line2lst)
+        return 1
+    else
+        if line1lst[1]!=line2lst[1]
+            return line1lst[1]<line2lst[1]?-1:1
+        else
+            let linenum1 = eval(line1lst[2])
+            let linenum2 = eval(line2lst[2])
+            return linenum1==linenum2?0:(linenum1<linenum2?-1:1)
+        endif
+    endif
+endfunction ">>>
+
 " ------------------------------------------------------------------ 
 " Desc: Get Global Search Result
 " search_pattern = ''
@@ -490,38 +535,8 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump) " <<<
-    " this will fix the jump error when tagselect in the same window
-    if &filetype == "ex_filetype"
-        silent exec "normal \<Esc>"
-    endif
-
-    " TODO different mode, same things
-    " open and goto search window first
-    let gs_winnr = bufwinnr(s:exGS_select_title)
-
-    let bufnr = bufnr('%')
-    " save the entry point
-    let cursor_pos = getpos(".")
-    let stack_preview = getline(".")
-    let stack_preview = strpart( stack_preview, match(stack_preview, '\S') )
-    if a:direct_jump == 0
-        let stack_preview = '[GS] ' . stack_preview
-    else
-        let stack_preview = '[GG] ' . stack_preview
-    endif
-    let s:exGS_search_state_tmp.entry_file_name = bufname(bufnr)
-    let s:exGS_search_state_tmp.entry_cursor_pos = cursor_pos
-    let s:exGS_search_state_tmp.stack_preview = stack_preview
-
-    if gs_winnr == -1
-        " open window
-        call s:exGS_ToggleWindow('Select')
-    else
-        exe gs_winnr . 'wincmd w'
-    endif
-
     " if the search pattern is same as the last one, open the window
-    if a:search_pattern !=# s:exGS_search_stack_list[s:exGS_stack_idx].pattern && s:exGS_need_search_again != 1
+    if a:search_pattern !=# s:exGS_cur_search_pattern && s:exGS_need_search_again != 1
         let s:exGS_need_push_search_result = 1
         let s:exGS_select_idx = 1
     else
@@ -529,6 +544,7 @@ function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump
         let s:exGS_select_idx = 1
         let s:exGS_need_search_again = 0
     endif
+    let s:exGS_cur_search_pattern = a:search_pattern
 
     " create search cmd
     if s:exGS_ignore_case && (match(a:search_pattern, '\u') == -1)
@@ -541,17 +557,92 @@ function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump
     let search_result = system(search_cmd)
     let search_result = '----------' . a:search_pattern . '----------' . "\n" . search_result
 
+    " push entry state after we get the search result
+    let stack_info = {}
+    let preview = getline(".")
+    let stack_info.preview = strpart( preview, match(preview, '\S') )
+    if &filetype == "ex_plugin" || &filetype == "ex_project"
+        let stack_info.file_name = ''
+    else
+        let stack_info.file_name = bufname('%')
+    endif
+    let cur_pos = getpos(".")
+    let stack_info.cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col
+    if a:direct_jump == 0
+        let stack_info.jump_method = 'GS'
+    else
+        let stack_info.jump_method = 'GG'
+    endif
+    let stack_info.keyword = a:search_pattern
+    let stack_info.taglist = []
+    let stack_info.tagidx = -1
+    call g:exJS_PushEntryState ( stack_info )
+
+    " open and goto search window first
+    let gs_winnr = bufwinnr(s:exGS_select_title)
+    if gs_winnr == -1
+        " open window
+        call s:exGS_ToggleWindow('Select')
+    else
+        exe gs_winnr . 'wincmd w'
+    endif
+
     " clear screen and put new result
     silent exec '1,$d _'
     call exUtility#HighlightConfirmLine()
     let line_num = line('.')
     silent put = search_result
 
+    " auto sort search results if the number of results less than g:exGS_lines_for_autosort lines
+    if g:exGS_auto_sort == 1
+        if line('$') <= g:exGS_lines_for_autosort
+            call s:exGS_SortSearchResults ()
+        endif
+    endif
+
     " Init search state
-    let s:exGS_search_state_tmp.pattern = a:search_pattern
     let s:exGS_select_idx = line_num+1
     silent call cursor( line_num+1, 1 )
     silent normal zz
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exGS_SortSearchResults() " <<<
+    if bufname('%') ==# s:exGS_select_title
+        let lines = getline(3, '$')
+        silent call sort(lines, "s:exGS_SearchResultComp")
+        silent call setline(3, lines)
+    elseif bufname('%') ==# s:exGS_quick_view_title
+        let save_cursor = getpos(".")
+        silent normal gg
+        while 1
+            let start_ln = search('<<<<<<', 'W')
+            let end_ln = search('>>>>>>', 'W')
+            if start_ln == 0
+                break
+            else
+                let start_ln += 1 
+                let end_ln -= 1 
+                let lines = getline(start_ln, end_ln)
+                silent call sort(lines, "s:exGS_SearchResultComp")
+                silent call setline(start_ln, lines)
+            endif
+        endwhile
+        silent call setpos(".", save_cursor)
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+"
+function s:exGS_SortSearchResultsByRange() range " <<<
+    let lines = getline(a:firstline, a:lastline)
+    silent call sort(lines, "s:exGS_SearchResultComp")
+    silent call setline(a:firstline, lines)
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -561,11 +652,6 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exGS_GetFilenameSearchResult(search_pattern, search_method) " <<<
-    " this will fix the jump error when tagselect in the same window
-    if &filetype == "ex_filetype"
-        silent exec "normal \<Esc>"
-    endif
-
     " open and goto search window first
     let gs_winnr = bufwinnr(s:exGS_select_title)
     if gs_winnr == -1
@@ -602,193 +688,6 @@ function s:exGS_GetFilenameSearchResult(search_pattern, search_method) " <<<
 endfunction " >>>
 
 " ======================================================== 
-" stack window functions
-" ======================================================== 
-
-" ------------------------------------------------------------------ 
-" Desc: Init exGlobalSearch select window
-" ------------------------------------------------------------------ 
-
-function g:exGS_InitStackWindow() " <<<
-    " syntax highlight
-    syntax match ex_SynJumpMethodS '\[GS]'
-    syntax match ex_SynJumpMethodG '\[GG]'
-    syntax match ex_SynJumpSymbol '======>'
-    syntax match ex_SynTitle '#.\+PATTERN.\+ENTRY POINT PREVIEW'
-
-    " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exGS_Stack_GoDirect()<CR>
-    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exGS_Stack_GoDirect()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exGS_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exGS_ToggleWindow('Stack')<CR>
-
-    nnoremap <buffer> <silent> <C-Up>   :call <SID>exGS_SwitchWindow('Stack')<CR>
-    nnoremap <buffer> <silent> <C-Left>   :call <SID>exGS_SwitchWindow('Select')<CR>
-    nnoremap <buffer> <silent> <C-Right>   :call <SID>exGS_SwitchWindow('QuickView')<CR>
-
-    " autocmd
-    au CursorMoved <buffer> :call exUtility#HighlightSelectLine()
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: Update exGlobalSearch stack window 
-" ------------------------------------------------------------------ 
-
-function g:exGS_UpdateStackWindow() " <<<
-    " if need update stack window 
-    if s:exGS_need_update_stack_window
-        let s:exGS_need_update_stack_window = 0
-        call s:exGS_ShowStackList()
-    endif
-
-    let pattern = s:exGS_stack_idx . ':'
-    if search( pattern, 'w') == 0
-        call exUtility#WarningMsg('Pattern not found')
-        return
-    endif
-    call exUtility#HighlightConfirmLine()
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: Push the result into stack
-" ------------------------------------------------------------------ 
-
-function s:exGS_PushStack( search_state ) " <<<
-    let list_len = len(s:exGS_search_stack_list)
-    if list_len > s:exGS_stack_idx+1
-        call remove(s:exGS_search_stack_list, s:exGS_stack_idx+1, list_len-1)
-        let s:exGS_stack_idx += 1
-    else
-        let s:exGS_stack_idx += 1
-    endif
-    let search_state = copy(a:search_state)
-    call add(s:exGS_search_stack_list,search_state)
-
-    let s:exGS_need_update_stack_window = 1
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: Show the stack list in stack window
-" ------------------------------------------------------------------ 
-
-function s:exGS_ShowStackList() " <<<
-    " open and goto search window first
-    let gs_winnr = bufwinnr(s:exGS_stack_title)
-    if gs_winnr == -1
-        " open window
-        call s:exGS_ToggleWindow('Stack')
-    else
-        exe gs_winnr . 'wincmd w'
-    endif
-
-    " clear screen
-    silent exec '1,$d _'
-
-    " put an empty line first
-    silent put = ''
-
-    " put the title
-    let tag_name = 'PATTERN'
-    let stack_preview = 'ENTRY POINT PREVIEW'
-    let str_line = printf(" #  %-54s%s", tag_name, stack_preview)
-    silent put = str_line
-
-    " put the stack
-    let idx = 0
-    for state in s:exGS_search_stack_list
-        let str_line = printf("%2d: %-40s ======> %s", idx, state.pattern, state.stack_preview)
-        silent put = str_line
-        let idx += 1
-    endfor
-    silent exec 'normal! gg"_dd'
-
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: Go to idx tags
-" jump_method : 'to_tag', to_entry
-" ------------------------------------------------------------------ 
-
-function s:exGS_Stack_GotoTag( idx, jump_method ) " <<<
-    let jump_method = a:jump_method
-    let list_len = len(s:exGS_search_stack_list)
-    " if idx < 0, return
-    if a:idx < 0
-        call exUtility#WarningMsg('at the top of exSearchStack')
-        let s:exGS_stack_idx = 0
-        return
-    elseif a:idx > list_len-1
-        call exUtility#WarningMsg('at the bottom of exSearchStack')
-        let s:exGS_stack_idx = list_len-1
-        return
-    endif
-
-    let s:exGS_stack_idx = a:idx
-    let need_jump = 1
-    " start point always use to_entry method
-    if s:exGS_stack_idx == 0
-        let jump_method = 'to_entry'
-    endif
-
-    " open and go to stack window first
-    let background_op = 0
-    if bufwinnr(s:exGS_stack_title) == -1
-        call s:exGS_ToggleWindow('Stack')
-        let background_op = 1
-    else
-        call g:exGS_UpdateStackWindow()
-    endif
-
-    " start parsing
-    if need_jump == 1
-        " go by tag_idx
-        if jump_method == 'to_entry'
-            call exUtility#GotoEditBuffer()
-            silent exec 'e ' . s:exGS_search_stack_list[s:exGS_stack_idx].entry_file_name
-            call setpos('.', s:exGS_search_stack_list[s:exGS_stack_idx].entry_cursor_pos)
-        else
-            call exUtility#GotoEditBuffer()
-            silent exec 'e ' . s:exGS_search_stack_list[s:exGS_stack_idx].pattern_file_name
-            call setpos('.', s:exGS_search_stack_list[s:exGS_stack_idx].pattern_cursor_pos)
-        endif
-        exe 'normal! zz'
-    endif
-
-    " go back if needed
-    call exUtility#OperateWindow ( s:exGS_stack_title, g:exGS_stack_close_when_selected || background_op, g:exGS_backto_editbuf, 1 )
-
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: 
-" ------------------------------------------------------------------ 
-
-function s:exGS_Stack_GoDirect() " <<<
-    let cur_line = getline(".")
-    let idx = match(cur_line, '\S')
-    let cur_line = strpart(cur_line, idx)
-    let idx = match(cur_line, ':')
-    if idx == -1
-        call exUtility#WarningMsg("Can't jump in this line")
-        return
-    endif
-
-    let stack_idx = eval(strpart(cur_line, 0, idx))
-    call exUtility#HighlightConfirmLine()
-
-    " if select idx > old idx, jump to tag. else jump to entry
-    if stack_idx > s:exGS_stack_idx
-        call s:exGS_Stack_GotoTag(stack_idx, 'to_tag')
-        let s:exGS_last_jump_method = "to_tag"
-    elseif stack_idx < s:exGS_stack_idx
-        call s:exGS_Stack_GotoTag(stack_idx, 'to_entry')
-        let s:exGS_last_jump_method = "to_entry"
-    else
-        call s:exGS_Stack_GotoTag(stack_idx, s:exGS_last_jump_method)
-    endif
-endfunction " >>>
-
-" ======================================================== 
 " quick view window part
 " ======================================================== 
 
@@ -815,12 +714,11 @@ function g:exGS_InitQuickViewWindow() " <<<
     syntax match ex_SynFold '>>>>>>'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exGS_GotoInQuickViewWindow()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exGS_ToggleWindow('QuickView')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exGS_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exGS_GotoInQuickViewWindow()<CR>"
     nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exGS_GotoInQuickViewWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exGS_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exGS_ToggleWindow('QuickView')<CR>
 
-    nnoremap <buffer> <silent> <C-Up>   :call <SID>exGS_SwitchWindow('Stack')<CR>
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exGS_SwitchWindow('Select')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exGS_SwitchWindow('QuickView')<CR>
 
@@ -834,7 +732,7 @@ function g:exGS_InitQuickViewWindow() " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
-" Desc: Update exGlobalSearch stack window 
+" Desc: Update exGlobalSearch quickview window 
 " ------------------------------------------------------------------ 
 
 function g:exGS_UpdateQuickViewWindow() " <<<
@@ -988,13 +886,10 @@ command -nargs=1 -complete=customlist,exUtility#CompleteBySymbolFile GSR call s:
 command -nargs=1 -complete=customlist,exUtility#CompleteByProjectFile GSF call s:exGS_GetFilenameSearchResult('<args>', '-s')
 command -nargs=1 -complete=customlist,exUtility#CompleteByProjectFile GSFW call s:exGS_GetFilenameSearchResult('<args>', '-w')
 
-command ExgsToggle call s:exGS_ToggleWindow('')
-command ExgsSelectToggle call s:exGS_ToggleWindow('Select')
-command ExgsStackToggle call s:exGS_ToggleWindow('Stack')
-command ExgsQuickViewToggle call s:exGS_ToggleWindow('QuickView')
+command ExgsToggle call s:exGS_ClearEntryToggleWindow('')
+command ExgsSelectToggle call s:exGS_ClearEntryToggleWindow('Select')
+command ExgsQuickViewToggle call s:exGS_ClearEntryToggleWindow('QuickView')
 command ExgsGoDirectly call s:exGS_GetGlobalSearchResult(expand("<cword>"), '-s', 1)
-command BackwardSearchStack call s:exGS_Stack_GotoTag(s:exGS_stack_idx-1, 'to_entry')
-command ForwardSearchStack call s:exGS_Stack_GotoTag(s:exGS_stack_idx+1, 'to_tag')
 
 command ExgsGotoNextResult call s:exGS_GotoResult ( 'next' )
 command ExgsGotoPrevResult call s:exGS_GotoResult ( 'prev' )
@@ -1014,4 +909,4 @@ command GSnoigc call s:exGS_SetIgnoreCase(0)
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

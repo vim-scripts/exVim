@@ -65,6 +65,13 @@ set maxmempattern=1000
 "set errorformat+=%\\d%\\+\>%f(%l)\ :\ %t%*\\D%n:\ %m " msvc 2005 error-format
 "set errorformat+=%f(%l\\,%c):\ %m " fxc shader error-format
 
+"/////////////////////////////////////////////////////////////////////////////
+" xterm settings
+"/////////////////////////////////////////////////////////////////////////////
+
+if &term =~ "xterm"
+    set mouse=a
+endif
 
 "/////////////////////////////////////////////////////////////////////////////
 " Variable settings ( set all )
@@ -94,7 +101,8 @@ endif
 
 " color scheme define
 if has("gui_running")
-    silent exec "colorscheme ex"
+    " silent exec "colorscheme ex"
+    silent exec "colorscheme ex_lightgray"
 else " if we are in terminal mode
     silent exec "colorscheme darkblue"
 endif
@@ -436,6 +444,11 @@ au FileType vim set comments=sO:\"\ -,mO:\"\ \ ,eO:\"\",f:\"
 " Desc: exUtility
 " ------------------------------------------------------------------ 
 
+" set EX_DEV variable for linux
+if has ("unix")
+    let $EX_DEV='/usr/local/share'
+endif
+
 " edit current vimentry
 nnoremap <unique> <leader>ve :call exUtility#EditVimEntry ()<CR>
 
@@ -623,6 +636,22 @@ function g:ex_CustomHighlight()
     " TagListFileName - Used for filenames
     hi MyTagListFileName term=bold cterm=bold ctermfg=Black ctermbg=LightBlue gui=bold guifg=Black guibg=LightBlue
 
+    " ======================================================== 
+    " special color settings 
+    " ======================================================== 
+
+    if g:colors_name == 'ex_lightgray'
+        " ex plugins
+        hi ex_SynSearchPattern gui=bold guifg=DarkRed guibg=Gray term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray
+        hi exMH_GroupNameEnable term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray gui=bold guifg=DarkRed guibg=Gray
+        hi exMH_GroupNameDisable term=bold cterm=bold ctermfg=Red ctermbg=DarkGray gui=bold guifg=DarkGray guibg=Gray
+
+        " other plugins
+    hi MBEVisibleNormal term=bold cterm=bold ctermbg=DarkGray ctermfg=Black gui=bold guibg=DarkGray guifg=Black
+        hi MBENormal ctermbg=Gray ctermfg=DarkGray guibg=Gray guifg=DarkGray
+        hi MyTagListTitle term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray gui=bold guifg=DarkRed guibg=Gray 
+    endif
+
 endfunction
 
 " ------------------------------------------------------------------ 
@@ -630,16 +659,12 @@ endfunction
 " ------------------------------------------------------------------ 
 
 nnoremap <unique> <silent> <Leader>ts :ExtsSelectToggle<CR>
-nnoremap <unique> <silent> <Leader>tt :ExtsStackToggle<CR>
 nnoremap <unique> <silent> <Leader>tg :ExtsGoDirectly<CR>
 
 nnoremap <unique> <silent> <Leader>] :ExtsGoDirectly<CR>
-nnoremap <unique> <silent> <Leader>tb :BackwardTagStack<CR>
-nnoremap <unique> <silent> <Leader>tf :ForwardTagStack<CR>
 
 let g:exTS_backto_editbuf = 0
 let g:exTS_close_when_selected = 1
-let g:exTS_stack_close_when_selected = 0
 let g:exTS_window_direction = 'bel'
 
 " ------------------------------------------------------------------ 
@@ -648,19 +673,16 @@ let g:exTS_window_direction = 'bel'
 
 nnoremap <unique> <silent> <Leader>gs :ExgsSelectToggle<CR>
 nnoremap <unique> <silent> <Leader>gq :ExgsQuickViewToggle<CR>
-nnoremap <unique> <silent> <Leader>gt :ExgsStackToggle<CR>
 nnoremap <unique> <silent> <Leader>gg :ExgsGoDirectly<CR>
 nnoremap <unique> <silent> <Leader>n :ExgsGotoNextResult<CR>
 nnoremap <unique> <silent> <Leader>N :ExgsGotoPrevResult<CR>
-
-nnoremap <unique> <silent> <Leader>gb :BackwardSearchStack<CR>
-nnoremap <unique> <silent> <Leader>gf :ForwardSearchStack<CR>
 nnoremap <unique> <Leader><S-f> :GS 
 
 let g:exGS_backto_editbuf = 0
 let g:exGS_close_when_selected = 0
-let g:exGS_stack_close_when_selected = 0
 let g:exGS_window_direction = 'bel'
+let g:exGS_auto_sort = 1
+let g:exGS_lines_for_autosort = 200
 
 " ------------------------------------------------------------------ 
 " Desc: exSymbolTable
@@ -673,6 +695,14 @@ nnoremap <unique> <silent> <Leader>sg :ExslGoDirectly<CR>
 nmap <unique> <A-S-l> :ExslQuickSearch<CR>/
 
 let g:exSL_SymbolSelectCmd = 'TS'
+
+" ------------------------------------------------------------------ 
+" Desc: exJumpStack 
+" ------------------------------------------------------------------ 
+
+nnoremap <unique> <silent> <Leader>tt :ExjsToggle<CR>
+nnoremap <unique> <silent> <Leader>tb :BackwardStack<CR>
+nnoremap <unique> <silent> <Leader>tf :ForwardStack<CR>
 
 " ------------------------------------------------------------------ 
 " Desc: exCscope
@@ -823,6 +853,9 @@ let Tlist_Compact_Format = 1 " do not show help
 " let Tlist_Process_File_Always = 1 " To use the :TlistShowTag and the :TlistShowPrototype commands without the taglist window and the taglist menu, you should set this variable to 1.
 ":TlistShowPrototype [filename] [linenumber]
 
+" let taglist support shader language as c-like language
+let tlist_hlsl_settings = 'c;d:macro;g:enum;s:struct;u:union;t:typedef;v:variable;f:function'
+
 " ------------------------------------------------------------------ 
 " Desc: MiniBufExpl
 " ------------------------------------------------------------------ 
@@ -906,6 +939,19 @@ imap <unique> <F11> <ESC><Plug>Comment
 vmap <unique> <C-F11> <Plug>VisualDeComment
 nmap <unique> <C-F11> <Plug>DeComment
 imap <unique> <C-F11> <ESC><Plug>DeComment
+
+" ======================================================== 
+"  add new languages for comment
+" ======================================================== 
+
+function EnhCommentifyCallback(ft)
+    " add hlsl
+    if a:ft == 'hlsl'
+        let b:ECcommentOpen = '//'
+        let b:ECcommentClose = ''
+    endif
+endfunction
+let g:EnhCommentifyCallbackExists = 'Yes'
 
 " ------------------------------------------------------------------ 
 " Desc: ShowMarks

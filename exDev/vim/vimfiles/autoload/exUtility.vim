@@ -245,7 +245,7 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#InitWindow(init_func_name) " <<<
-    silent! setlocal filetype=ex_filetype
+    silent! setlocal filetype=ex_plugin
 
     " Folding related settings
     silent! setlocal foldenable
@@ -309,8 +309,8 @@ function exUtility#OpenWindow( buffer_name, window_direction, window_size, use_v
     endfor
 
     " if current editor buf is a plugin file type
-    if &filetype == "ex_filetype"
-        silent exec "normal \<Esc>"
+    if &filetype == "ex_plugin"
+        call exUtility#CloseWindow( bufname('%') )
     endif
 
     " go to edit buffer first, then open the window, this will avoid some bugs
@@ -479,7 +479,8 @@ function exUtility#CloseAllExpluginWindow() " <<<
     let bufnum_list = []
     while i <= winnr("$")
         let bnum = winbufnr(i)
-        if bnum != -1 && getbufvar(bnum, '&filetype') ==# 'ex_filetype'
+        let buf_filetype = getbufvar(bnum, '&filetype') 
+        if bnum != -1 && (buf_filetype ==# 'ex_plugin' || buf_filetype ==# 'ex_project')
             silent call add ( bufnum_list, bnum )
         endif
         let i += 1
@@ -2371,7 +2372,7 @@ function exUtility#CopyQuickGenProject() " <<<
     if has("win32")
         let full_quick_gen_script = fnamemodify( $EX_DEV . "\\vim\\toolkit\\quickgen\\" . folder_name . "\\" . quick_gen_script, ":p")
     elseif has("unix")
-        let full_quick_gen_script = fnamemodify( '/usr/local/share/vim/toolkit/quickgen/' . folder_name . '/' . quick_gen_script, ":p" )
+        let full_quick_gen_script = fnamemodify( $EX_DEV . '/vim/toolkit/quickgen/' . folder_name . '/' . quick_gen_script, ":p" )
     endif
     if findfile( full_quick_gen_script ) == ""
         call exUtility#WarningMsg('Error: file ' . full_quick_gen_script . ' not found')
@@ -2659,7 +2660,7 @@ function exUtility#CreateQuickGenProject() " <<<
         let script_suffix = 'sh'
 
         silent call add( text_list, 'export script_type="autogen"' )
-        silent call add( text_list, 'export EX_DEV="/usr/local/share"' )
+        silent call add( text_list, 'export EX_DEV='.'"'.$EX_DEV.'"' )
         silent call add( text_list, 'export cwd=${PWD}' ) " 
         silent call add( text_list, 'export lang_type='.'"'.lang_type.'"' ) " 
         silent call add( text_list, 'export vimfiles_path='.'"'.g:exES_vimfiles_dirname.'"' )
@@ -2892,7 +2893,14 @@ function exUtility#SrcHighlight( line1, line2 ) " <<<
 
     " browse use browser browse file
     "KEEPME once we have css version (src 2.6): let shl_cmd = 'source-highlight -f html -s ex_cpp -n --data-dir=%EX_DEV%\GnuWin32\share\source-highlight -css="ex.css"' . ' -i ' . temp_file . ' -o ' . temp_file_html
-    let shl_cmd = 'source-highlight -f html -s ex_cpp -n --data-dir=%EX_DEV%\GnuWin32\share\source-highlight' . ' -i ' . temp_file . ' -o ' . temp_file_html
+    let share_path = ''
+    if has ('win32')
+        let share_path = '%EX_DEV%\GnuWin32\share'
+    elseif has ('unix')
+        let share_path = '${EX_DEV}\local\share'
+    endif
+    let shl_cmd = 'source-highlight -f html -s ex_cpp -n --data-dir='.share_path.'\source-highlight' . ' -i ' . temp_file . ' -o ' . temp_file_html
+
     let shl_result = system(shl_cmd)
 
     " TODO: use if win32, if linux
@@ -3368,7 +3376,7 @@ function exUtility#CopySyntaxHighlighterFiles( dest_path ) " <<<
 
             let cmd = copy_cmd . ' ' . src . ' ' . dest 
         elseif has("unix")
-            let src = fnamemodify( '/usr/local/share/vim/toolkit/SyntaxHighlighter/', ":p" )
+            let src = fnamemodify( $EX_DEV . '/vim/toolkit/SyntaxHighlighter/', ":p" )
 
             " remove last \ if found in dest path
             if ( dest[strlen(dest)-1] == '/' )
@@ -3558,4 +3566,4 @@ endfunction " >>>
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

@@ -140,10 +140,15 @@ let s:elif_and_pattern  = '^\s*\%(%:\|#\)\s*\%(elif\s\+\%(.*&&\s*\)*(*\s*\%(defi
 let s:elifn_or_pattern  = '^\s*\%(%:\|#\)\s*\%(elif\s\+\%(.*||\s*\)*!\s*(*\s*\%(defined\)*\s*(*\s*\|elif\s\+\%(.*||\s*\)*(*\s*\S*\s*!=\s*\)'
 let s:elifn_and_pattern = '^\s*\%(%:\|#\)\s*\%(elif\s\+\%(.*&&\s*\)*!\s*(*\s*\%(defined\)*\s*(*\s*\|elif\s\+\%(.*&&\s*\)*(*\s*\S*\s*!=\s*\)'
 " ---------------------------------
-let s:or_pattern   = '\s\+.*||\s*(*\s*\%(defined\)*\s*(*\s*\%(\s*\S*\s*==\s*\)*'
-let s:and_pattern  = '\s\+.*&&\s*(*\s*\%(defined\)*\s*(*\s*\%(\s*\S*\s*==\s*\)*'
-let s:orn_pattern  = '\s\+.*||\s*\%(!\s*(*\s*\%(defined\)*\s*(*\s*\|(*\s*\S*\s*!=\s*\)'
-let s:andn_pattern = '\s\+.*&&\s*\%(!\s*(*\s*\%(defined\)*\s*(*\s*\|(*\s*\S*\s*!=\s*\)'
+" NOTE: the if here fix the bug:
+" {{{
+"     #if defined (MACRO1) || defined (MACRO1)
+" }}}
+" which means the code #if not start from the beginning of the line, but the or,and pattern will come from the beginning of the line. 
+let s:or_pattern   = 'if\s\+.*||\s*(*\s*\%(defined\)*\s*(*\s*\%(\s*\S*\s*==\s*\)*'
+let s:and_pattern  = 'if\s\+.*&&\s*(*\s*\%(defined\)*\s*(*\s*\%(\s*\S*\s*==\s*\)*'
+let s:orn_pattern  = 'if\s\+.*||\s*\%(!\s*(*\s*\%(defined\)*\s*(*\s*\|(*\s*\S*\s*!=\s*\)'
+let s:andn_pattern = 'if\s\+.*&&\s*\%(!\s*(*\s*\%(defined\)*\s*(*\s*\|(*\s*\S*\s*!=\s*\)'
 " ---------------------------------
 let s:end_pattern = '\s*)*.*$' " end_pattern used in syntax region define start
 let s:end_not_and_pattern = '\s*)*\s*\%(&[^&]\|[^&]\)*$' " the [^&] will stop martch in xxx &, but the &[^&] will let this martch pass until && coming
@@ -264,20 +269,6 @@ function s:exMH_ToggleWindow( short_title ) " <<<
         call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_width, g:exMH_use_vertical_window, 'none', 0, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
     else
         call exUtility#ToggleWindow( title, g:exMH_window_direction, g:exMH_window_height, g:exMH_use_vertical_window, 'none', 0, 'g:exMH_Init'.s:exMH_short_title.'Window', 'g:exMH_Update'.s:exMH_short_title.'Window' )
-    endif
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: 
-" ------------------------------------------------------------------ 
-
-function s:exMH_SwitchWindow( short_title ) " <<<
-    let title = '__exMH_' . a:short_title . 'Window__'
-    if a:short_title == 'Select'
-        let title = s:exMH_cur_filename
-    endif
-    if bufwinnr(title) == -1
-        call s:exMH_ToggleWindow(a:short_title)
     endif
 endfunction " >>>
 
@@ -424,7 +415,7 @@ function s:exMH_UpdateMacroPattern() " <<<
     " update def macro pattern
     let s:def_macro_pattern = '\%(\%(\%(==\|!=\)\s*\)\@<!\<1\>'
     for def_macro in s:exMH_define_list[1]
-        let s:def_macro_pattern .= '\|\<' . def_macro . '\>'
+        let s:def_macro_pattern .= '\|\<\C' . def_macro . '\>'
     endfor
     let s:def_macro_pattern .= '\)'
 
@@ -432,7 +423,7 @@ function s:exMH_UpdateMacroPattern() " <<<
     " the \(==\|!=\)\$<! pattern will stop parseing the 0 as == 0. this will fix the bug like #if ( EX_NOT_IN_MACRO_FILE == 0 ) become match
     let s:undef_macro_pattern = '\%(\%(\%(==\|!=\)\s*\)\@<!\<0\>'
     for undef_macro in s:exMH_define_list[0]
-        let s:undef_macro_pattern .= '\|\<' . undef_macro . '\>'
+        let s:undef_macro_pattern .= '\|\<\C' . undef_macro . '\>'
     endfor
     let s:undef_macro_pattern .= '\)'
 
@@ -469,7 +460,7 @@ function s:exMH_DefineSyntax() " <<<
     " --------------- exIfEnable ---------------
     " if enable(def_macro) else disable
     exec 'syn region exIfEnableStart start=' . '"' . s:if_enable_pattern . '"' . ' end=".\@=\|$" contains=exIfEnable,exAndEnable,exAndnotEnable'
-    " add if_or_pattern fix bug that #if MACRO_DISABLE || MACRO_ENABLE || MACRO_DISABLE " FIXME: I not sure if it have any side-effect
+    " NOTE: add if_or_pattern fix bug that #if MACRO_DISABLE || MACRO_ENABLE || MACRO_DISABLE ". NOTE: I not sure if it have any side-effect
     exec 'syn region exIfEnable contained extend keepend matchgroup=cPreProc start=' . '"' . s:if_or_pattern . s:def_macro_pattern . s:end_not_and_pattern . '"' . ' skip="#endif\>\_[^\%(\/\*\)]*\*\/" end="^\s*\%(%:\|#\)\s*\%(endif\>\)" contains=exElseDisable,@exEnableContainedGroup'
 
     " --------------- exElifEnable ---------------
@@ -481,7 +472,7 @@ function s:exMH_DefineSyntax() " <<<
     " --------------- exIfnEnable ---------------
     " ifn enable(undef_macro) else disable
     exec 'syn region exIfnEnableStart start=' . '"' . s:ifn_enable_pattern . '"' . ' end=".\@=\|$" contains=exIfnEnable,exAndEnable,exAndnotEnable'
-    " add ifn_or_pattern fix a bug that #if !MACRO_DISABLE || !MACRO_DISABLE || !MACRO_DISABLE " FIXME: I not sure if it have any side-effect
+    " NOTE: add ifn_or_pattern fix a bug that #if !MACRO_DISABLE || !MACRO_DISABLE || !MACRO_DISABLE ", NOTE: I not sure if it have any side-effect
     exec 'syn region exIfnEnable contained extend keepend matchgroup=cPreProc start=' . '"' . s:ifn_or_pattern . s:undef_macro_pattern . s:end_not_and_pattern . '"' . ' skip="#endif\>\_[^\%(\/\*\)]*\*\/" end="^\s*\%(%:\|#\)\s*\%(endif\>\)" contains=exElseDisable,@exEnableContainedGroup'
 
     " --------------- exElifnEnable ---------------
@@ -563,7 +554,7 @@ endfunction " >>>
 " ======================================================== 
 
 " ------------------------------------------------------------------ 
-" Desc: Init exSymbolList window
+" Desc: Init macro higlihgt select window
 " ------------------------------------------------------------------ 
 
 function g:exMH_InitSelectWindow() " <<<
@@ -574,13 +565,14 @@ function g:exMH_InitSelectWindow() " <<<
     silent! setlocal cursorline
     
     " key map
-    nnoremap <buffer> <silent> <Space>   :call <SID>exMH_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exMH_ToggleWindow('Select')<CR>
-    nnoremap <buffer> <silent> <Return>   :call <SID>exMH_SelectConfirm()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exMH_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exMH_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exMH_SelectConfirm()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exMH_SelectConfirm()<CR>
 
     " dummy mapping
-    nnoremap <buffer> <silent> <C-Left>   :call <SID>exMH_SwitchWindow('Select')<CR>
-    nnoremap <buffer> <silent> <C-Right>   :call <SID>exMH_SwitchWindow('Select')<CR>
+    nnoremap <buffer> <silent> <C-Left>   :call exUtility#WarningMsg("only select window")<CR>
+    nnoremap <buffer> <silent> <C-Right>   :call exUtility#WarningMsg("only select window")<CR>
 
     " autocmd
     " au CursorMoved <buffer> :call exUtility#HighlightSelectLine()
@@ -598,11 +590,6 @@ function g:exMH_InitSelectWindow() " <<<
     syntax match exMH_GroupNameDisable '^.*:\s\+\[x\]'
     syntax match exMH_MacroEnable '^\s\s\s\zs\*\S\+$'
     syntax match exMH_MacroDisable '^\s\s\s\s\zs\S\+$'
-
-    hi def exMH_GroupNameEnable term=bold cterm=bold ctermfg=DarkRed ctermbg=LightGray gui=bold guifg=DarkRed guibg=LightGray
-    hi def exMH_GroupNameDisable term=bold cterm=bold ctermfg=Red ctermbg=DarkGray gui=bold guifg=DarkGray guibg=LightGray
-    hi def link exMH_MacroEnable PreProc
-    hi def link exMH_MacroDisable exMacroDisable
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -755,4 +742,4 @@ command -narg=? ExmhHL call s:exMH_SyntaxHL('<args>')
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

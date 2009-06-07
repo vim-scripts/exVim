@@ -61,6 +61,42 @@ if !exists ( "g:ex_default_langs" )
     let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'math', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug' ] 
 endif
 
+" ------------------------------------------------------------------ 
+" Desc: ex_dev environment variable 
+" NOTE: we don't recommend to set the g:ex_dev_path directly in vim/_vimrc
+" ------------------------------------------------------------------ 
+
+if $EX_DEV ==# ""
+    call confirm ("exVim error: Please set the EX_DEV in _vimrc, default is let $EX_DEV='/usr/local/share'")
+    let $EX_DEV='/usr/local/share'
+endif
+
+" ------------------------------------------------------------------ 
+" Desc: general key mappings 
+" ------------------------------------------------------------------ 
+
+" general key mapping: close window
+if !exists ( "g:ex_keymap_close" )
+    let g:ex_keymap_close = "<esc>"
+    if has("gui_running")
+        let g:ex_keymap_close = "<esc>"
+    else " xterm should not map <esc> key
+        if has("unix")
+            let g:ex_keymap_close = "<leader><esc>"
+        endif
+    endif
+endif
+
+" general key mapping: resize window
+if !exists ( "g:ex_keymap_resize" )
+    let g:ex_keymap_resize = "<space>"
+endif
+
+" general key mapping: select confirm
+if !exists ( "g:ex_keymap_confirm" )
+    let g:ex_keymap_confirm = "<enter>"
+endif
+
 " ======================================================== 
 " local variable initialization
 " ======================================================== 
@@ -114,12 +150,42 @@ function s:UpdateSyntaxHighlights() " <<<
     hi default ex_SynSearchPattern gui=bold guifg=DarkRed guibg=LightGray term=bold cterm=bold ctermfg=DarkRed ctermbg=LightGray
     hi default ex_SynTitle term=bold cterm=bold ctermfg=DarkYellow gui=bold guifg=Brown
 
-    hi default ex_SynJumpMethodS term=none cterm=none ctermfg=Red gui=none guifg=Red 
-    hi default ex_SynJumpMethodG term=none cterm=none ctermfg=Blue gui=none guifg=Blue 
-    hi default link ex_SynJumpSymbol Comment
-
-    hi default exCommentLable term=standout ctermfg=DarkYellow ctermbg=Red gui=none guifg=LightYellow guibg=Red
+    hi default exCommentLable term=standout ctermfg=DarkYellow ctermbg=Red gui=none guifg=LightGray guibg=Red
     " hi exCommentLable term=standout ctermfg=DarkYellow ctermbg=Red gui=none guifg=DarkRed guibg=LightMagenta
+
+    " ======================================================== 
+    " exEnvironment
+    " ======================================================== 
+
+	hi default exES_SynVar gui=none guifg=DarkCyan term=none cterm=none ctermfg=DarkCyan
+	hi default exES_SynVal gui=none guifg=Brown term=none cterm=none ctermfg=Brown
+	hi default link exES_SynOperator Normal
+	hi default link exES_SynComment Comment
+    " KEEPME highlight link exES_SynDeref Preproc
+
+    " ======================================================== 
+    " exProject
+    " ======================================================== 
+
+    hi default exPJ_TreeLine gui=none guifg=DarkGray term=none cterm=none ctermfg=Gray
+    hi default exPJ_SynDir gui=bold guifg=Brown term=bold cterm=bold ctermfg=DarkRed
+    hi default exPJ_SynFile gui=none guifg=Magenta term=none cterm=none ctermfg=Magenta
+    hi default exPJ_SynFilter gui=none guifg=DarkCyan term=none cterm=none ctermfg=DarkCyan
+
+    hi default exPJ_SynSrcFile gui=none guifg=Blue term=none cterm=none ctermfg=Blue
+    hi default exPJ_SynHeaderFile gui=none guifg=DarkGreen term=none cterm=none ctermfg=DarkGreen
+    hi default exPJ_SynErrorFile gui=none guifg=Red term=none cterm=none ctermfg=Red
+
+    " ======================================================== 
+    " exJumpStack
+    " ======================================================== 
+
+    hi default exJS_SynJumpMethodS term=none cterm=none ctermfg=Red gui=none guifg=Red 
+    hi default exJS_SynJumpMethodG term=none cterm=none ctermfg=Blue gui=none guifg=Blue 
+    hi default link exJS_SynKeyWord Preproc
+
+    hi default exJS_SynJumpLine term=none cterm=none ctermfg=DarkGray gui=none guifg=DarkGray 
+    hi default exJS_SynJumpDisable term=none cterm=none ctermfg=DarkGray gui=none guifg=DarkGray
 
     " ======================================================== 
     " exMacroHighlight
@@ -131,18 +197,6 @@ function s:UpdateSyntaxHighlights() " <<<
     hi default exMH_GroupNameDisable term=bold cterm=bold ctermfg=Red ctermbg=DarkGray gui=bold guifg=DarkGray guibg=LightGray
     hi default link exMH_MacroEnable PreProc
     hi default link exMH_MacroDisable exMacroDisable
-
-    " ======================================================== 
-    " exProject
-    " ======================================================== 
-
-    hi default exPJ_TreeLine gui=none guifg=DarkGray term=none cterm=none ctermfg=Gray
-    hi default exPJ_SynDir gui=bold guifg=Brown term=bold cterm=bold ctermfg=DarkRed
-    hi default exPJ_SynFile gui=none guifg=Magenta term=none cterm=none ctermfg=Magenta
-
-    hi default exPJ_SynSrcFile gui=none guifg=Blue term=none cterm=none ctermfg=Blue
-    hi default exPJ_SynHeaderFile gui=none guifg=DarkGreen term=none cterm=none ctermfg=DarkGreen
-    hi default exPJ_SynErrorFile gui=none guifg=Red term=none cterm=none ctermfg=Red
 
     " ======================================================== 
     " exCScope
@@ -236,4 +290,4 @@ command -range -narg=1 -complete=customlist,exUtility#CompleteMKArgs MK call exU
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

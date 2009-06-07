@@ -200,10 +200,14 @@ function g:exMB_InitSelectWindow() " <<<
     syntax match ex_SynTitle '^<<<<<< .* >>>>>>'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exMB_GotoSelectResult()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exMB_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exMB_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exMB_GotoSelectResult()<CR>"
     nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exMB_GotoSelectResult()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exMB_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exMB_ToggleWindow('Select')<CR>
+
+    " dummy mapping
+    nnoremap <buffer> <silent> <C-Left>   :call exUtility#WarningMsg("only select window")<CR>
+    nnoremap <buffer> <silent> <C-Right>   :call exUtility#WarningMsg("only select window")<CR>
 
     " autocmd
     au CursorMoved <buffer> :call s:exMB_SelectCursorMoved()
@@ -477,4 +481,4 @@ command ExmbToggle call s:exMB_ToggleWindow('')
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

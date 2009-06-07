@@ -128,6 +128,32 @@ let s:exSL_quick_view_idx = 1
 " ======================================================== 
 
 " ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exSL_PushEntryToggleWindow( title ) " <<<
+    " push entry state after we get the search result
+    let stack_info = {}
+    let preview = getline(".")
+    let stack_info.preview = strpart( preview, match(preview, '\S') )
+    if &filetype == "ex_plugin" || &filetype == "ex_project"
+        let stack_info.file_name = ''
+    else
+        let stack_info.file_name = bufname('%')
+    endif
+    let cur_pos = getpos(".")
+    let stack_info.cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col
+    let stack_info.jump_method = 'SS'
+    let stack_info.keyword = 'N/A'
+    let stack_info.taglist = []
+    let stack_info.tagidx = -1
+    call g:exJS_PushEntryState ( stack_info )
+
+    "
+    call s:exSL_ToggleWindow(a:title)
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
 " Desc: Open exSymbolSelect window 
 " ------------------------------------------------------------------ 
 
@@ -163,8 +189,9 @@ endfunction " >>>
 function s:exSL_ToggleWindow( short_title ) " <<<
     " read the file first, if file name changes, reset title.
     if exists('g:exES_Symbol') 
-        if s:exSL_select_title !=# g:exES_Symbol
-            let s:exSL_select_title = g:exES_Symbol
+        let sel_bufname = fnamemodify(g:exES_Symbol, ':p:.')
+        if s:exSL_select_title !=# sel_bufname
+            let s:exSL_select_title = sel_bufname
         endif
     else
         call exUtility#WarningMsg('not found symbol file')
@@ -216,7 +243,22 @@ function s:exSL_SwitchWindow( short_title ) " <<<
     endif
 
     if bufwinnr(s:exSL_cur_title) == -1
+        " save the old height & width
+        let old_height = g:exSL_window_height
+        let old_width = g:exSL_window_width
+
+        " use the width & height of current window if it is same plugin window.
+        if bufname ('%') ==# s:exSL_select_title || bufname ('%') ==# s:exSL_quick_view_title 
+            let g:exSL_window_height = winheight('.')
+            let g:exSL_window_width = winwidth('.')
+        endif
+
+        " switch to the new plugin window
         call s:exSL_ToggleWindow(a:short_title)
+
+        " recover the width and height
+        let g:exSL_window_height = old_height
+        let g:exSL_window_width = old_width
     endif
 endfunction " >>>
 
@@ -238,14 +280,10 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exSL_GetSymbolListResult( symbol ) " <<<
-    "if &filetype == "ex_filetype"
-    "    silent exec "normal \<Esc>"
-    "endif
-
     " open symbol select window
     let sl_winnr = bufwinnr(s:exSL_select_title)
     if sl_winnr == -1
-        call s:exSL_ToggleWindow('Select')
+        call s:exSL_PushEntryToggleWindow('Select')
     else
         exe sl_winnr . 'wincmd w'
     endif
@@ -269,14 +307,10 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exSL_QuickSearch() " <<<
-    "if &filetype == "ex_filetype"
-    "    silent exec "normal \<Esc>"
-    "endif
-
     " open symbol select window
     let sl_winnr = bufwinnr(s:exSL_select_title)
     if sl_winnr == -1
-        call s:exSL_ToggleWindow('Select')
+        call s:exSL_PushEntryToggleWindow('Select')
     else
         exe sl_winnr . 'wincmd w'
     endif
@@ -361,15 +395,38 @@ function s:exSL_GetAndShowPickedResult() " <<<
     " get search pattern
     let search_pattern = expand("<cword>")
 
-    "
-    "if &filetype == "ex_filetype"
-    "    silent exec "normal \<Esc>"
-    "endif
+    " push entry state after we get the search result
+    let stack_info = {}
+    let preview = getline(".")
+    let stack_info.preview = strpart( preview, match(preview, '\S') )
+    if &filetype == "ex_plugin" || &filetype == "ex_project"
+        let stack_info.file_name = ''
+    else
+        let stack_info.file_name = bufname('%')
+    endif
+    let cur_pos = getpos(".")
+    let stack_info.cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col
+    let stack_info.jump_method = 'SG'
+    let stack_info.keyword = search_pattern
+    let stack_info.taglist = []
+    let stack_info.tagidx = -1
+    call g:exJS_PushEntryState ( stack_info )
 
-    " copy picked result
-    let s:exSL_quick_view_idx = 1
-    call s:exSL_SwitchWindow("Select")
+    " check if we have symbol select or quickview window opened
+    let sl_winnr = bufwinnr(s:exSL_select_title)
+    if sl_winnr == -1
+        let sl_winnr = bufwinnr(s:exSL_quick_view_title)
+    endif
+
+    " go to the select window first
+    if sl_winnr != -1
+        exe sl_winnr . 'wincmd w'
+    endif
+
+    " call switch function
+    call s:exSL_SwitchWindow('Select')
     call s:exSL_CopyPickedLine( search_pattern, 1, 0 )
+    let s:exSL_quick_view_idx = 1
     call s:exSL_SwitchWindow('QuickView')
     silent exec '1,$d _'
     silent put = s:exSL_picked_search_result
@@ -385,8 +442,7 @@ function s:exSL_GotoResult() " <<<
     let s:exSL_select_idx = line('.')
     let symbol_key_word = getline('.')
     if symbol_key_word != ''
-        call s:exSL_ToggleWindow( s:exSL_short_title )
-        exec (g:exSL_SymbolSelectCmd . " " . symbol_key_word)
+        exec g:exSL_SymbolSelectCmd . " " . symbol_key_word
     else
         call exUtility#WarningMsg('Please select a symbol')
     endif
@@ -408,13 +464,15 @@ function g:exSL_InitSelectWindow() " <<<
     silent! setlocal buftype=
     
     " key map
-    nnoremap <buffer> <silent> <Return> \|:call <SID>exSL_GotoResult()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exSL_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exSL_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exSL_GotoResult()<CR>"
     nnoremap <buffer> <silent> <2-LeftMouse> \|:call <SID>exSL_GotoResult()<CR>
+
     nnoremap <buffer> <silent> <C-Return>   \|:call <SID>exSL_ShowPickedResult(getline('.'), 0)<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exSL_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exSL_ToggleWindow('Select')<CR>
+
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exSL_SwitchWindow('QuickView')<CR>
-    nnoremap <buffer> <silent> <C-Right>   :call <SID>exSL_SwitchWindow('Select')<CR>
+    nnoremap <buffer> <silent> <C-Right>  :call <SID>exSL_SwitchWindow('Select')<CR>
 
     nnoremap <buffer> <silent> <Leader>r :call <SID>exSL_ShowPickedResult('', 0)<CR>
     nnoremap <buffer> <silent> <Leader>d :call <SID>exSL_ShowPickedResult('', 1)<CR>
@@ -446,10 +504,11 @@ function g:exSL_InitQuickViewWindow() " <<<
     silent! setlocal nonumber
     
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exSL_GotoResult()<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exSL_ToggleWindow('QuickView')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exSL_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exSL_GotoResult()<CR>"
     nnoremap <buffer> <silent> <2-LeftMouse> \|:call <SID>exSL_GotoResult()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exSL_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exSL_ToggleWindow('QuickView')<CR>
+
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exSL_SwitchWindow('QuickView')<CR>
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exSL_SwitchWindow('Select')<CR>
 
@@ -475,10 +534,10 @@ endfunction " >>>
 
 "
 command -nargs=1 -complete=customlist,exUtility#CompleteBySymbolFile SL call s:exSL_GetSymbolListResult('<args>')
-command ExslSelectToggle call s:exSL_ToggleWindow('Select')
-command ExslQuickViewToggle call s:exSL_ToggleWindow('QuickView')
+command ExslSelectToggle call s:exSL_PushEntryToggleWindow('Select')
+command ExslQuickViewToggle call s:exSL_PushEntryToggleWindow('QuickView')
 command ExslQuickSearch call s:exSL_QuickSearch()
-command ExslToggle call s:exSL_ToggleWindow('')
+command ExslToggle call s:exSL_PushEntryToggleWindow('')
 command ExslGoDirectly call s:exSL_GetAndShowPickedResult()
 
 " quick view command
@@ -494,4 +553,4 @@ command SLnoigc call s:exSL_SetIgnoreCase(0)
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

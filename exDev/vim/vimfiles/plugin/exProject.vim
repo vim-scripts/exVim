@@ -284,13 +284,13 @@ endfunction
 " ------------------------------------------------------------------ 
 
 function s:exPJ_UpdateFilters()
-    let file_filter_txt = getline(1)
-    if match( file_filter_txt, '^file filter =' ) != -1
+    let file_filter_txt = getline( search('^file filter =', 'nw') )
+    if file_filter_txt != ''
         silent call exUtility#SetProjectFilter ( "file_filter", strpart( file_filter_txt, stridx(file_filter_txt, "=")+2 ) )
     endif
 
-    let dir_filter_txt = getline(2)
-    if match( dir_filter_txt, '^dir filter =' ) != -1
+    let dir_filter_txt = getline( search('^dir filter =', 'nw') )
+    if dir_filter_txt != ''
         silent call exUtility#SetProjectFilter ( "dir_filter", strpart( dir_filter_txt, stridx(dir_filter_txt, "=")+2 ) )
     endif
 endfunction
@@ -304,7 +304,8 @@ endfunction
 " ------------------------------------------------------------------ 
 
 function g:exPJ_InitSelectWindow() " <<<
-    silent! setlocal filetype=ex_filetype
+    " NOTE: overwrite the filetype from ex_plugin to ex_project, so that the project window will not be close when doing a ex-operation
+    silent! setlocal filetype=ex_project 
     silent! setlocal buftype=
     silent! setlocal cursorline
 
@@ -330,29 +331,25 @@ function g:exPJ_InitSelectWindow() " <<<
     syntax match exPJ_SynHeaderFile '\[\(h\|i\)\]'
     syntax match exPJ_SynErrorFile '\[e\]'
 
-    hi def exPJ_TreeLine gui=none guifg=DarkGray term=none cterm=none ctermfg=Gray
-    hi def exPJ_SynDir gui=bold guifg=Brown term=bold cterm=bold ctermfg=DarkRed
-    hi def exPJ_SynFile gui=none guifg=Magenta term=none cterm=none ctermfg=Magenta
-    hi def exPJ_SynFilter gui=none guifg=DarkCyan term=none cterm=none ctermfg=DarkCyan
-
-    hi def exPJ_SynSrcFile gui=none guifg=Blue term=none cterm=none ctermfg=Blue
-    hi def exPJ_SynHeaderFile gui=none guifg=DarkGreen term=none cterm=none ctermfg=DarkGreen
-    hi def exPJ_SynErrorFile gui=none guifg=Red term=none cterm=none ctermfg=Red
-
     " key map
-    nnoremap <silent> <buffer> <Return>   :call <SID>exPJ_GotoSelectResult('e')<CR>
+    " silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exPJ_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exPJ_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exPJ_GotoSelectResult('e')<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exPJ_GotoSelectResult('e')<CR>
+
     nnoremap <silent> <buffer> <S-Return> :call <SID>exPJ_GotoSelectResult('bel sp')<CR>
-    nnoremap <silent> <buffer> <2-LeftMouse>   :call <SID>exPJ_GotoSelectResult('e')<CR>
     nnoremap <silent> <buffer> <S-2-LeftMouse> :call <SID>exPJ_GotoSelectResult('bel sp')<CR>
 
-    nnoremap <silent> <buffer> <Space>   :call <SID>exPJ_ResizeWindow()<CR>
     nnoremap <silent> <buffer> <localleader>C    :call <SID>exPJ_CreateProject(1)<CR>
     nnoremap <silent> <buffer> <localleader>cf   :call <SID>exPJ_RefreshProject(1)<CR>
     nnoremap <silent> <buffer> <localleader>R    :call <SID>exPJ_CreateProject(0)<CR>
     nnoremap <silent> <buffer> <localleader>r    :call <SID>exPJ_RefreshProject(0)<CR>
-    nnoremap <silent> <buffer> <C-Left>   :echo 'project buffer only'<CR>
-    nnoremap <silent> <buffer> <C-Right>  :echo 'project buffer only'<CR>
 
+    " dummy mapping
+    nnoremap <buffer> <silent> <C-Left>   :call exUtility#WarningMsg("only select window")<CR>
+    nnoremap <buffer> <silent> <C-Right>   :call exUtility#WarningMsg("only select window")<CR>
+
+    "
     nnoremap <silent> <buffer> <C-Up> :call exUtility#CursorJump( 'ErrorLog.err', 'up' )<CR>
     nnoremap <silent> <buffer> <C-Down> :call exUtility#CursorJump( 'ErrorLog.err', 'down' )<CR>
 
@@ -415,19 +412,23 @@ function s:exPJ_CreateProject(with_dialog) " <<<
     call s:exPJ_UpdateFilters()
     call exUtility#SetLevelList(-1, 1)
 
+    " get entry dir
+    let entry_dir = getcwd()
+    if exists('g:exES_CWD')
+        let entry_dir = g:exES_CWD
+    endif
+
     " if use dialog
     if a:with_dialog == 1
-        " get entry dir
-        let ex_pwd = getcwd()
-        if exists('g:exES_CWD')
-            let ex_pwd = g:exES_CWD
-        endif
-        let entry_dir = inputdialog( 'Enter the entry directory: ', ex_pwd, 'cancle' )
-        if entry_dir == ''
-            call exUtility#WarningMsg('Entry dir is empty')
-            return
-        elseif entry_dir == 'cancle'
-            return
+        " if the exProject is standalone version, show entry dir dialog
+        if !exists('g:exES_CWD')
+            let entry_dir = inputdialog( 'Enter the entry directory: ', getcwd(), 'cancle' )
+            if entry_dir == ''
+                call exUtility#WarningMsg('Entry dir is empty')
+                return
+            elseif entry_dir == 'cancle'
+                return
+            endif
         endif
 
         " get file filter
@@ -447,8 +448,6 @@ function s:exPJ_CreateProject(with_dialog) " <<<
         else
             silent call exUtility#SetProjectFilter ( "dir_filter", dir_filter )
         endif
-    else
-        let entry_dir = g:exES_CWD
     endif
 
     echon "Creating exProject: " . entry_dir . "\r"
@@ -936,11 +935,6 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exPJ_GotoCurrentFile( jump_to_project_window ) " <<<
-    " close the ex-plugin window
-    if &filetype == "ex_filetype"
-        silent exec "normal \<Esc>"
-    endif
-
     " first make sure we are in edit buffer.
     call exUtility#GotoEditBuffer()
 
@@ -1011,4 +1005,4 @@ command ExpjUpdateFilters call s:exPJ_UpdateFilters()
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:

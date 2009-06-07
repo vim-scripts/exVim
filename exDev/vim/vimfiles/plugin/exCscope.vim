@@ -136,12 +136,6 @@ let s:exCS_quick_view_idx = 1
 let s:exCS_picked_search_result = []
 let s:exCS_quick_view_search_pattern = ''
 
-" ======================================================== 
-" syntax highlight
-" ======================================================== 
-
-hi def exCS_SynQfNumber gui=none guifg=Red term=none cterm=none ctermfg=Red
-
 "/////////////////////////////////////////////////////////////////////////////
 " function defines
 "/////////////////////////////////////////////////////////////////////////////
@@ -210,7 +204,22 @@ endfunction " >>>
 function s:exCS_SwitchWindow( short_title ) " <<<
     let title = '__exCS_' . a:short_title . 'Window__'
     if bufwinnr(title) == -1
+        " save the old height & width
+        let old_height = g:exCS_window_height
+        let old_width = g:exCS_window_width
+
+        " use the width & height of current window if it is same plugin window.
+        if bufname ('%') ==# s:exCS_select_title || bufname ('%') ==# s:exCS_quick_view_title 
+            let g:exCS_window_height = winheight('.')
+            let g:exCS_window_width = winwidth('.')
+        endif
+
+        " switch to the new plugin window
         call s:exCS_ToggleWindow(a:short_title)
+
+        " recover the width and height
+        let g:exCS_window_height = old_height
+        let g:exCS_window_width = old_width
     endif
 endfunction " >>>
 
@@ -414,9 +423,10 @@ function g:exCS_InitSelectWindow() " <<<
     syntax match exCS_SynQfNumber '^ \[\d\+\]'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exCS_GotoInSelectWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exCS_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exCS_ToggleWindow('Select')<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exCS_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exCS_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exCS_GotoInSelectWindow()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exCS_GotoInSelectWindow()<CR>
 
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exCS_SwitchWindow('Select')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exCS_SwitchWindow('QuickView')<CR>
@@ -480,11 +490,6 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function s:exCS_GetSearchResult(search_pattern, search_method) " <<<
-    " this will fix the jump error when tagselect in the same window
-    if &filetype == "ex_filetype"
-        silent exec "normal \<Esc>"
-    endif
-
     " if cscope file not connect, connect it
     if cscope_connection(4, "cscope.out", g:exES_Cscope ) == 0
         call g:exCS_ConnectCscopeFile()
@@ -560,9 +565,10 @@ function g:exCS_InitQuickViewWindow() " <<<
     syntax match ex_SynFold '>>>>>>'
 
     " key map
-    nnoremap <buffer> <silent> <Return>   \|:call <SID>exCS_GotoInQuickViewWindow()<CR>
-    nnoremap <buffer> <silent> <Space>   :call <SID>exCS_ResizeWindow()<CR>
-    nnoremap <buffer> <silent> <ESC>   :call <SID>exCS_ToggleWindow('QuickView')<CR>
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exCS_ToggleWindow('QuickView')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exCS_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exCS_GotoInQuickViewWindow()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exCS_GotoInQuickViewWindow()<CR>
 
     nnoremap <buffer> <silent> <C-Right>   :call <SID>exCS_SwitchWindow('Select')<CR>
     nnoremap <buffer> <silent> <C-Left>   :call <SID>exCS_SwitchWindow('QuickView')<CR>
@@ -768,4 +774,4 @@ command CSED call s:exCS_GoDirect('e')
 "/////////////////////////////////////////////////////////////////////////////
 
 finish
-" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=1:
+" vim: set foldmethod=marker foldmarker=<<<,>>> foldlevel=9999:
