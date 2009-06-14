@@ -382,8 +382,7 @@ function s:exTS_GetTagSelectResult(tag, direct_jump) " <<<
     " push entry state if the taglist is not empty
     if !empty(tag_list)
         let stack_info = {}
-        let preview = getline(".")
-        let stack_info.preview = strpart( preview, match(preview, '\S') )
+        let stack_info.pattern = getline(".")
         if &filetype == "ex_plugin" || &filetype == "ex_project"
             let stack_info.file_name = ''
         else
@@ -397,8 +396,8 @@ function s:exTS_GetTagSelectResult(tag, direct_jump) " <<<
             let stack_info.jump_method = 'TG'
         endif
         let stack_info.keyword = in_tag
-        let stack_info.taglist = tag_list
-        let stack_info.tagidx = 1
+        let stack_info.taglist = []
+        let stack_info.tagidx = -1
         call g:exJS_PushEntryState ( stack_info )
     endif
 
@@ -510,14 +509,13 @@ function s:exTS_GotoTagSelectResult() " <<<
 
     " push tag to jump stack if needed, otherwise set last jump stack
     let stack_info = {}
-    let preview = getline(".")
-    let stack_info.preview = strpart( preview, match(preview, '\S') )
+    let stack_info.pattern = getline(".")
     let stack_info.file_name = bufname('%')
     let cur_pos = getpos(".")
     let stack_info.cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col
     let stack_info.jump_method = ''
-    let stack_info.keyword = ''
-    let stack_info.taglist = []
+    let stack_info.keyword = s:exTS_cur_tagname
+    let stack_info.taglist = s:exTS_cur_taglist
     let stack_info.tagidx = s:exTS_cur_tagidx
     if s:exTS_need_push_tag
         let s:exTS_need_push_tag = 0

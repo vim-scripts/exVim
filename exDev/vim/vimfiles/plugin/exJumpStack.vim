@@ -132,7 +132,7 @@ let s:exJS_entry_list = []
 " " ------------------------------------------------------------------ 
 
 " let s:exJS_stack_info = {}
-" let s:exJS_stack_info.preview = 'current line preview'
+" let s:exJS_stack_info.pattern = 'current line pattern'
 " let s:exJS_stack_info.file_name = '' " current file name
 " let s:exJS_stack_info.cursor_pos = [-1,-1] " lnum, col
 " let s:exJS_stack_info.jump_method = 'GS/TS/GG/TG/SG/SS'
@@ -373,9 +373,9 @@ endfunction " >>>
 function g:exJS_InitSelectWindow() " <<<
     syntax region ex_SynSearchPattern start="^----------" end="----------"
 
-    syntax region exJS_SynJumpMethodS start="\[\C\(GS\|TS\|SS\)\]" end=":" keepend contains=exJS_SynKeyWord
-    syntax region exJS_SynJumpMethodG start="\[\C\(GG\|TG\|SG\)\]" end=":" keepend contains=exJS_SynKeyWord
-    syntax match exJS_SynKeyWord contained '\[\C\(GS\|TS\|GG\|TG\|SS\|SG\)\]\zs\S\+'
+    syntax region exJS_SynJumpMethodS start="\[\C\(GS\|TS\|SS\)\]" skip="::" end=":" keepend contains=exJS_SynKeyWord
+    syntax region exJS_SynJumpMethodG start="\[\C\(GG\|TG\|SG\)\]" skip="::" end=":" keepend contains=exJS_SynKeyWord
+    syntax match exJS_SynKeyWord contained '\[\C\(GS\|TS\|GG\|TG\|SS\|SG\)\]\zs.\+'
 
     syntax region exJS_SynJumpDisable start='^ |-' end="$"
     " syntax region ex_SynDisable start='^ |-' end="$" contains=exJS_SynJumpMethodS,exJS_SynJumpMethodG
@@ -433,7 +433,7 @@ function s:exJS_ShowStackList() " <<<
         endif
 
         " add preview section
-        let line_list[len(line_list)-1] .= stack_info.preview 
+        let line_list[len(line_list)-1] .= strpart( stack_info.pattern, match(stack_info.pattern, '\S') )
 
         " add jump method line if we have 
         if stack_info.jump_method ==# ''
@@ -460,7 +460,8 @@ function s:exJS_ShowDebugInfo() " <<<
     silent call append( line('$'), '==== DEBUG ====' )
     silent call append( line('$'), 'idx: ' . s:exJS_stack_idx )
     for stack_info in s:exJS_stack_list
-        silent call append( line('$'), stack_info.preview )
+        let preview = strpart( stack_info.pattern, match(stack_info.pattern, '\S') )
+        silent call append( line('$'), preview )
     endfor
     let s:exJS_need_update_select_window = 1
 endfunction " >>>
@@ -554,6 +555,9 @@ function s:exJS_GotoStackByIndex( index ) " <<<
         call exUtility#WarningMsg("Can't jump in this line")
         return
     endif
+
+    " save the last stack index for keepjump checking
+    let last_stack_idx = s:exJS_stack_idx 
     let s:exJS_stack_idx = a:index
 
     " check if is a background op 
@@ -573,10 +577,33 @@ function s:exJS_GotoStackByIndex( index ) " <<<
         let window_exists = 1
     endif
 
-    " process the jump
+    " go to edit buffer
     call exUtility#GotoEditBuffer()
-    silent exec 'e ' . s:exJS_stack_list[a:index].file_name
-    silent call cursor(s:exJS_stack_list[a:index].cursor_pos)
+
+    " check if the cursor is in the position of current stack  
+    " if not, we should save the jump to the jump history, so that we can use ctrl-o get it back.
+    let keepjumps_cmd = ''
+    let cur_pos = getpos('.')
+    if ( s:exJS_stack_list[last_stack_idx].file_name ==# bufname('%') && cur_pos[1] == s:exJS_stack_list[last_stack_idx].cursor_pos[0] )
+        let keepjumps_cmd = 'keepjumps'
+    endif
+
+    " jump to the exact buffer and cursor pos
+    if bufnr('%') != bufnr( s:exJS_stack_list[a:index].file_name )
+        exe keepjumps_cmd . ' silent e ' . s:exJS_stack_list[a:index].file_name
+    endif
+    exe keepjumps_cmd . ' call cursor(s:exJS_stack_list[a:index].cursor_pos)'
+
+    " jump to the pattern if the code have been modified
+    if s:exJS_stack_list[a:index].pattern !~# '^\(\s\+\|\)$'
+        let pattern = '\V' . substitute( s:exJS_stack_list[a:index].pattern, '\', '\\\', "g" )
+        if search(pattern, 'cw') == 0
+            call exUtility#WarningMsg('search pattern not found: ' . pattern)
+        else " NOTE: after we do a pattern jump, the cursor_pos should update so that next time, keepjump check can do a right decisition 
+            let cur_pos = getpos(".")
+            let s:exJS_stack_list[a:index].cursor_pos = [cur_pos[1],cur_pos[2]] " lnum, col 
+        endif
+    endif
     exe 'normal! zz'
 
     " if we have taglist, set it
@@ -584,12 +611,16 @@ function s:exJS_GotoStackByIndex( index ) " <<<
     while empty(s:exJS_stack_list[idx].taglist) && idx > 0
         let idx -= 1
     endwhile
+    let keyword = ''
+    let tagidx = -1
     if !empty(s:exJS_stack_list[idx].taglist)
-        call g:exTS_ResetTaglist ( 
-                    \ s:exJS_stack_list[idx].taglist,
-                    \ s:exJS_stack_list[idx].keyword,
-                    \ s:exJS_stack_list[idx].tagidx )
+        let keyword = s:exJS_stack_list[idx].keyword
+        let tagidx = s:exJS_stack_list[idx].tagidx
     endif
+    call g:exTS_ResetTaglist ( 
+                \ s:exJS_stack_list[idx].taglist,
+                \ keyword,
+                \ tagidx )
 
     " general window operation 
     call exUtility#OperateWindow ( s:exJS_select_title, g:exJS_close_when_selected || (background_op && !window_exists), g:exJS_backto_editbuf || background_op, 1 )
