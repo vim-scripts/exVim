@@ -104,6 +104,7 @@ endif
 let s:exPJ_select_title = "__exPJ_SelectWindow__"
 let s:exPJ_short_title = 'Select'
 let s:exPJ_cur_filename = '__exPJ_SelectWindow__'
+let s:exPJ_quick_view_title = '__exPJ_QuickViewWindow__'
 
 " ------------------------------------------------------------------ 
 " Desc: select variable
@@ -144,9 +145,9 @@ function s:exPJ_OpenWindow( short_title ) " <<<
     endif
     " open window
     if g:exPJ_use_vertical_window
-        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, g:exPJ_edit_mode, 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_width, g:exPJ_use_vertical_window, 'none', 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     else
-        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, g:exPJ_edit_mode, 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
+        call exUtility#OpenWindow( title, g:exPJ_window_direction, g:exPJ_window_height, g:exPJ_use_vertical_window, 'none', 1, 'g:exPJ_Init'.s:exPJ_short_title.'Window', 'g:exPJ_Update'.s:exPJ_short_title.'Window' )
     endif
 endfunction " >>>
 
@@ -205,7 +206,22 @@ function s:exPJ_SwitchWindow( short_title ) " <<<
         let title = s:exPJ_cur_filename
     endif
     if bufwinnr(title) == -1
+        " save the old height & width
+        let old_height = g:exPJ_window_height
+        let old_width = g:exPJ_window_width
+
+        " use the width & height of current window if it is same plugin window.
+        if fnamemodify(bufname ('%'),':p:.') ==# fnamemodify(s:exPJ_cur_filename,':p:.') || bufname ('%') ==# s:exPJ_quick_view_title
+            let g:exPJ_window_height = winheight('.')
+            let g:exPJ_window_width = winwidth('.')
+        endif
+
+        " switch to the new plugin window
         call s:exPJ_ToggleWindow(a:short_title)
+
+        " recover the width and height
+        let g:exPJ_window_height = old_height
+        let g:exPJ_window_width = old_width
     endif
 endfunction " >>>
 
@@ -213,7 +229,7 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
-function s:exPJ_GetName( line_num )
+function s:exPJ_GetName( line_num ) " <<<
     let line = getline(a:line_num)
     let line = substitute(line,'.\{-}\[.\{-}\]\(.\{-}\)','\1','')
     let idx_end_1 = stridx(line,' {')
@@ -224,26 +240,26 @@ function s:exPJ_GetName( line_num )
         let line = strpart(line,0,idx_end_2)
     endif
     return line
-endfunction
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: used by exPJ_GetPath, by YJR
 " ------------------------------------------------------------------ 
 
-function s:exPJ_SearchForPattern(line_num,pattern)
+function s:exPJ_SearchForPattern(line_num,pattern) " <<<
     for linenum in range(a:line_num , 1 , -1)
         if match( getline(linenum) , a:pattern ) != -1
             return linenum
         endif
     endfor
     return 0
-endfunction
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: Get the full path of the line, by YJR
 " ------------------------------------------------------------------ 
 
-function s:exPJ_GetPath( line_num )
+function s:exPJ_GetPath( line_num ) " <<<
     let fold_level = exUtility#GetFoldLevel(a:line_num)
 
     " recursively make full path
@@ -268,22 +284,26 @@ function s:exPJ_GetPath( line_num )
     endwhile
 
     return full_path
-endfunction
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: 
 " ------------------------------------------------------------------ 
 
-function s:exPJ_RefreshWindow()
+function s:exPJ_RefreshWindow() " <<<
     " silent! wincmd H
-    silent exe 'vertical resize ' . g:exPJ_window_width
-endfunction
+    if g:exPJ_use_vertical_window
+        silent exe 'vertical resize ' . g:exPJ_window_width
+    else
+        silent exe 'resize ' . g:exPJ_window_height
+    endif
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: 
 " ------------------------------------------------------------------ 
 
-function s:exPJ_UpdateFilters()
+function s:exPJ_UpdateFilters() " <<<
     let file_filter_txt = getline( search('^file filter =', 'nw') )
     if file_filter_txt != ''
         silent call exUtility#SetProjectFilter ( "file_filter", strpart( file_filter_txt, stridx(file_filter_txt, "=")+2 ) )
@@ -345,16 +365,20 @@ function g:exPJ_InitSelectWindow() " <<<
     nnoremap <silent> <buffer> <localleader>R    :call <SID>exPJ_CreateProject(0)<CR>
     nnoremap <silent> <buffer> <localleader>r    :call <SID>exPJ_RefreshProject(0)<CR>
 
-    " dummy mapping
-    nnoremap <buffer> <silent> <C-Left>   :call exUtility#WarningMsg("only select window")<CR>
-    nnoremap <buffer> <silent> <C-Right>   :call exUtility#WarningMsg("only select window")<CR>
+    " map to NERDTree if exists
+    if exists (':NERDTree')
+        nnoremap <buffer> <silent> <c-right>   :NERDTree<CR>
+    else " dummy mapping
+        nnoremap <buffer> <silent> <c-right>   :call exUtility#WarningMsg('invalid')<CR>
+    endif
+    nnoremap <buffer> <silent> <c-left>   :call <SID>exPJ_SwitchWindow('QuickView')<CR>
 
     "
-    nnoremap <silent> <buffer> <C-Up> :call exUtility#CursorJump( 'ErrorLog.err', 'up' )<CR>
-    nnoremap <silent> <buffer> <C-Down> :call exUtility#CursorJump( 'ErrorLog.err', 'down' )<CR>
+    nnoremap <silent> <buffer> <c-up> :call exUtility#CursorJump( 'ErrorLog.err', 'up' )<CR>
+    nnoremap <silent> <buffer> <c-down> :call exUtility#CursorJump( 'ErrorLog.err', 'down' )<CR>
 
-    nnoremap <silent> <buffer> <C-k> :call exUtility#CursorJump( '\[\CF\]', 'up' )<CR>
-    nnoremap <silent> <buffer> <C-j> :call exUtility#CursorJump( '\[\CF\]', 'down' )<CR>
+    nnoremap <silent> <buffer> <c-k> :call exUtility#CursorJump( '\[\CF\]', 'up' )<CR>
+    nnoremap <silent> <buffer> <c-j> :call exUtility#CursorJump( '\[\CF\]', 'down' )<CR>
 
     "
     nnoremap <silent> <buffer> o  :call <SID>exPJ_CreateNewFile()<CR>
@@ -395,13 +419,14 @@ function s:exPJ_OpenProject(project_name) " <<<
         let s:exPJ_select_title = s:exPJ_cur_filename
     endif
 
-    " open project select window
-    let old_edit_mode = g:exPJ_edit_mode
-    let g:exPJ_edit_mode = 'none'
-
-    call s:exPJ_OpenWindow('Select')
-
-    let g:exPJ_edit_mode = old_edit_mode
+    " open and goto the window
+    let pj_winnr = bufwinnr(s:exPJ_select_title)
+    if pj_winnr == -1
+        " open window
+        call s:exPJ_ToggleWindow('Select')
+    else
+        exe pj_winnr . 'wincmd w'
+    endif
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -451,7 +476,8 @@ function s:exPJ_CreateProject(with_dialog) " <<<
     endif
 
     echon "Creating exProject: " . entry_dir . "\r"
-    call s:exPJ_OpenWindow('Select')
+    call s:exPJ_OpenProject('')
+    silent exec '1,$d _'
 
     " create filname list and filanmetag list
     " KEEPME: let filename_list = [[],[],[]] " NOTE: 0 is the filenametag, 1 is the filenamelist_cwd, 2 is the filenamelist_vimfiles
@@ -991,11 +1017,155 @@ function! g:exPJ_IsWindowOpened() " <<<
     return bufwinnr(s:exPJ_cur_filename) != -1
 endfunction " >>>
 
+" ======================================================== 
+" quick view window
+" ======================================================== 
+
+" ------------------------------------------------------------------ 
+" Desc: init quick view window
+" ------------------------------------------------------------------ 
+
+function g:exPJ_InitQuickViewWindow () " <<<
+    silent! setlocal cursorline
+    silent! setlocal nomodifiable
+
+    syntax match ex_SynSearchPattern '-- Buffer Explorer --'
+    syntax match ex_SynLineNr '^ \d\+:'
+    syntax region ex_SynFileName start="(" end=")" oneline
+
+    " key map
+    " silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_close . " :call <SID>exPJ_ToggleWindow('Select')<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_resize . " :call <SID>exPJ_ResizeWindow()<CR>"
+    silent exec "nnoremap <buffer> <silent> " . g:ex_keymap_confirm . " \\|:call <SID>exPJ_GotoInQuickViewWindow()<CR>"
+    nnoremap <buffer> <silent> <2-LeftMouse>   \|:call <SID>exPJ_GotoInQuickViewWindow()<CR>
+
+    " map to NERDTree if exists
+    if exists (':NERDTree')
+        nnoremap <buffer> <silent> <c-left>   :NERDTree<CR>
+    else " dummy mapping
+        nnoremap <buffer> <silent> <c-left>   :call exUtility#WarningMsg('invalid')<CR>
+    endif
+    nnoremap <buffer> <silent> <c-right>   :call <SID>exPJ_SwitchWindow('Select')<CR>
+
+    nnoremap <buffer> <silent> dd   :call <SID>exPJ_DeleteSelectBuffer()<CR>
+
+    " Autocommands to keep the window the specified size
+    au WinLeave <buffer> :call s:exPJ_RefreshWindow()
+    au WinEnter <buffer> :call g:exPJ_UpdateQuickViewWindow()
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: Update exProject quickview window 
+" ------------------------------------------------------------------ 
+
+function g:exPJ_UpdateQuickViewWindow() " <<<
+    call s:exPJ_ShowEditBuffers ()
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: goto select line
+" ------------------------------------------------------------------ 
+
+function s:exPJ_GotoInQuickViewWindow() " <<<
+    let bufnum = str2nr( getline('.') )
+    if bufnum == 0
+        call exUtility#WarningMsg("can't jump in this line")
+    else
+        let bufname = expand("#".bufnum.":p")
+
+        " silent wincmd p
+        call exUtility#GotoEditBuffer()
+        " do not open again if the current buf is the file to be opened
+        if fnamemodify(expand("%"),":p") != bufname
+            silent exec 'e ' . bufname
+        endif
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exPJ_DeleteSelectBuffer () " <<<
+    let bufnum = str2nr( getline('.') )
+    if bufnum == 0
+        call exUtility#WarningMsg("This is not a buffer line, can't delete it!")
+    else
+        " we can't delete no-save buffer
+        if getbufvar(bufnum, '&modified') == 1
+            call exUtility#WarningMsg( "Sorry, no write since last change for buffer: ".bufname(bufnum).", unable to delete" )
+            return
+        endif
+
+        let edit_bufnum = exUtility#GetEditBufferNum ()
+        " goto edit buffer run \bd to delete the specific buffer
+        if bufnum == edit_bufnum
+            call exUtility#GotoEditBuffer()
+            call exUtility#Kwbd(1)
+            call s:exPJ_GotoQuickViewWindow()
+        else
+            call exUtility#GotoEditBuffer()
+            silent exec 'b' . bufnum
+            call exUtility#Kwbd(1)
+            silent exec 'b' . edit_bufnum
+            call s:exPJ_GotoQuickViewWindow()
+        endif
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exPJ_GotoQuickViewWindow() " <<<
+    " open and goto the window
+    let pj_winnr = bufwinnr(s:exPJ_quick_view_title)
+    if pj_winnr == -1
+        " open window
+        call s:exPJ_ToggleWindow('QuickView')
+    else
+        exe pj_winnr . 'wincmd w'
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function s:exPJ_ShowEditBuffers () " <<<
+    let buf_explorer_title = '-- Buffer Explorer --' 
+
+    " walk through all window in exVim
+    let bnum = 1
+    let line_list = []
+    while bnum <= bufnr("$")
+        let bufname = bufname(bnum)
+        if !exUtility#IsRegisteredPluginBuffer ( bufname ) && getbufvar( bnum, '&buflisted') == 1
+            let text = ' ' . bnum . ': ' . fnamemodify( bufname, ':t' ) . ' (' .fnamemodify( bufname, ':h' ) . ')'
+            silent call add ( line_list, text )
+        endif
+        let bnum += 1
+    endwhile
+
+    " clear screen and put the new context
+    silent! setlocal modifiable
+    silent exec '1,$d _'
+    silent call append( line('$'), buf_explorer_title )
+    silent call append( line('$'), line_list )
+    silent! setlocal nomodifiable
+
+    "
+    let edit_bufnum = exUtility#GetEditBufferNum ()
+    silent call search( '^ '.edit_bufnum.':', 'w' )
+endfunction " >>>
+
+
 "/////////////////////////////////////////////////////////////////////////////
 " Commands
 "/////////////////////////////////////////////////////////////////////////////
 
 command -narg=? -complete=file EXProject call s:exPJ_OpenProject('<args>')
+command EXBufExplorer call s:exPJ_GotoQuickViewWindow()
 command ExpjSelectToggle call s:exPJ_ToggleWindow('Select')
 command ExpjGotoCurrentFile call s:exPJ_GotoCurrentFile(1)
 command ExpjUpdateFilters call s:exPJ_UpdateFilters()

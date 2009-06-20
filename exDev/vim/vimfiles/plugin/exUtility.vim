@@ -20,11 +20,19 @@ let loaded_exutility=1
 " ======================================================== 
 
 " ------------------------------------------------------------------ 
-" Desc: store the plugins buffer name, so we can ensure not recore name as edit-buffer
+" Desc: register plugin buffer filetypes, so we can recognize the window as plugin window
 " ------------------------------------------------------------------ 
 
-if !exists('g:ex_plugin_list')
-    let g:ex_plugin_list = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]"] 
+if !exists('g:ex_plugin_registered_filetypes')
+    let g:ex_plugin_registered_filetypes = ["ex_plugin","ex_project","taglist","nerdtree"] 
+endif
+
+" ------------------------------------------------------------------ 
+" Desc: register plugin buffer names, so we can recognize the window as plugin window
+" ------------------------------------------------------------------ 
+
+if !exists('g:ex_plugin_registered_bufnames')
+    let g:ex_plugin_registered_bufnames = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]"] 
 endif
 
 " ------------------------------------------------------------------ 
@@ -59,6 +67,14 @@ endif
 
 if !exists ( "g:ex_default_langs" )
     let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'math', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug' ] 
+endif
+
+" ------------------------------------------------------------------ 
+" Desc: cscope supported languages 
+" ------------------------------------------------------------------ 
+
+if !exists ( "g:ex_cscope_langs" )
+    let g:ex_cscope_langs = ['c', 'cpp', 'shader', 'asm' ] 
 endif
 
 " ------------------------------------------------------------------ 
@@ -106,12 +122,6 @@ endif
 " local variable initialization
 " ======================================================== 
 
-" ------------------------------------------------------------------ 
-" Desc:  
-" ------------------------------------------------------------------ 
-
-let s:ex_HighlightsInited = 0 
-
 " ======================================================== 
 " function settings
 " ======================================================== 
@@ -128,8 +138,6 @@ silent call exUtility#SetProjectFilter ( "dir_filter", "" ) " null-string means 
 " ------------------------------------------------------------------ 
 
 function s:UpdateSyntaxHighlights() " <<<
-
-    let s:ex_HighlightsInited = 1 
 
     " ======================================================== 
     " exUtility
@@ -238,12 +246,7 @@ endfunction " >>>
 " update buffer ( right now only minibuffer highlight )
 au BufWritePost * call exUtility#UpdateCurrentBuffer() 
 au ColorScheme * call s:UpdateSyntaxHighlights()
-
-" if you don't use color scheme, you may properly not run the code above, so
-" run it manually here
-if s:ex_HighlightsInited == 0
-    call s:UpdateSyntaxHighlights()
-endif
+au VimEnter * call s:UpdateSyntaxHighlights()
 
 "/////////////////////////////////////////////////////////////////////////////
 " commands

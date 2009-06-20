@@ -51,10 +51,14 @@ let s:ex_level_list = []
 
 let s:ex_special_mark_pattern = 'todo\|xxx\|fixme'
 if exists('g:ex_todo_keyword')
-    let s:ex_special_mark_pattern .= '\|' . substitute(tolower(g:ex_todo_keyword), ' ', '\\|', 'g' ) 
+    for item in split(tolower(g:ex_todo_keyword), ' ')
+        let s:ex_special_mark_pattern .= '\|\<' . item . '\>' 
+    endfor
 endif
 if exists('g:ex_comment_lable_keyword')
-    let s:ex_special_mark_pattern .= '\|' . substitute(tolower(g:ex_comment_lable_keyword), ' ', '\\|', 'g' ) 
+    for item in split(tolower(g:ex_comment_lable_keyword), ' ')
+        let s:ex_special_mark_pattern .= '\|\<' . item . '\>' 
+    endfor
 endif
 
 " ------------------------------------------------------------------ 
@@ -232,9 +236,16 @@ function exUtility#CreateWindow( buffer_name, window_direction, window_size, use
         silent exec '1,$d _'
     endif
 
-    " after create the window, record the bufname into the plugin list
-    if index( g:ex_plugin_list, fnamemodify(a:buffer_name,":p:t") ) == -1
-        silent call add(g:ex_plugin_list, fnamemodify(a:buffer_name,":p:t"))
+    " after create the window, record the bufname into the plugin buffer name list
+    let short_bufname = fnamemodify(a:buffer_name,":p:t")
+    if index( g:ex_plugin_registered_bufnames, short_bufname ) == -1
+        silent call add( g:ex_plugin_registered_bufnames, short_bufname )
+    endif
+
+    " record the filetype into the plugin filetype list
+    let buf_filetype = getbufvar(a:buffer_name,'&filetype')
+    if index( g:ex_plugin_registered_filetypes, buf_filetype ) == -1
+        silent call add( g:ex_plugin_registered_filetypes, buf_filetype )
     endif
 
 endfunction " >>>
@@ -265,8 +276,10 @@ function exUtility#InitWindow(init_func_name) " <<<
     " exTagSelect window. So forcefully disable 'number' option for the exTagSelect
     " window
     silent! setlocal nonumber
-    set winfixheight
-    set winfixwidth
+
+    " the winfix height width will let plugin-window not join into the <c-w>= operations
+    silent! setlocal winfixheight
+    silent! setlocal winfixwidth
 
     " Define hightlighting
     syntax match ex_SynError '^Error:.*'
@@ -300,18 +313,8 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#OpenWindow( buffer_name, window_direction, window_size, use_vertical, edit_mode, backto_editbuf, init_func_name, call_func_name ) " <<<
-    " check if a ex window exists on the target position 
-    for nr_win in range(1,winnr("$"))
-        if getwinvar(nr_win, "use_vertical") == a:use_vertical && getwinvar(nr_win, "window_direction") == a:window_direction 
-            " get the ex window, change window to the target window
-            silent exe nr_win . 'wincmd w'
-        endif
-    endfor
-
-    " if current editor buf is a plugin file type
-    if &filetype == "ex_plugin"
-        call exUtility#CloseWindow( bufname('%') )
-    endif
+    " close ex_plugin window in same position
+    call exUtility#ClosePluginWindowInSamePosition ( a:use_vertical, a:window_direction )
 
     " go to edit buffer first, then open the window, this will avoid some bugs
     call exUtility#RecordCurrentBufNum()
@@ -473,6 +476,36 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
+function exUtility#ClosePluginWindowInSamePosition ( use_vertical, window_direction ) " <<<
+    " NOTE: the CloseWindow should be called in each situation. 
+    " Since you can: in a exProject/Minibuffer window try to open another plugin window. 
+    "                or just open a plugin window that already have another plugin window take the position.
+
+    " check if a ex window exists on the target position, if yes, close it. 
+    for nr_win in range(1,winnr("$"))
+        if getwinvar(nr_win, "use_vertical") == a:use_vertical && getwinvar(nr_win, "window_direction") == a:window_direction 
+            " get the ex window, change window to the target window
+            silent exe nr_win . 'wincmd w'
+            call exUtility#CloseWindow( bufname('%') )
+            return
+        endif
+    endfor
+
+    " check if current window is a plugin window ( except minibuf, exProject), if yes close it
+    if exUtility#IsRegisteredPluginBuffer ( bufname('%') ) && 
+                \ fnamemodify(bufname('%'),":p:t") !=# "-MiniBufExplorer-" &&
+                \ &filetype != 'ex_project' &&
+                \ &filetype != 'nerdtree'
+        call exUtility#CloseWindow( bufname('%') )
+        return
+    endif
+endfunction " >>>
+
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
 function exUtility#CloseAllExpluginWindow() " <<<
     " walk through all window in exVim
     let i = 1
@@ -480,7 +513,7 @@ function exUtility#CloseAllExpluginWindow() " <<<
     while i <= winnr("$")
         let bnum = winbufnr(i)
         let buf_filetype = getbufvar(bnum, '&filetype') 
-        if bnum != -1 && (buf_filetype ==# 'ex_plugin' || buf_filetype ==# 'ex_project')
+        if bnum != -1 && exUtility#IsRegisteredPluginBuffer ( bufname('%') )
             silent call add ( bufnum_list, bnum )
         endif
         let i += 1
@@ -742,10 +775,17 @@ function exUtility#MarkText( text, line1, line2 ) " <<<
     let last_line = a:line2
 
     " check if it is special mark, special mark will use uppercase
-    let text = a:text
-    if a:text =~? s:ex_special_mark_pattern
-        let text = toupper(text)
-    endif
+    let text = ''
+    for item in split(a:text, ' ')
+        if item =~? s:ex_special_mark_pattern
+            let text .= toupper(item) . ' ' 
+        else
+            let text .= item . ' ' 
+        endif
+    endfor
+
+    " remove last space
+    let text = strpart ( text, 0, len(text) - 1 )
 
     "
     let lstline = last_line + 1 
@@ -766,8 +806,8 @@ function exUtility#RemoveSpecialMarkText () " <<<
 
     let start_lnum = -1
     let end_lnum = -1
-    let start_pattern = b:ECcommentOpen . ' ' . '\(' . s:ex_special_mark_pattern . '\)' . '.* { ' . b:ECcommentClose
-    let end_pattern = b:ECcommentOpen . ' } ' . '\(' . s:ex_special_mark_pattern . '\)' . '.* end ' . b:ECcommentClose
+    let start_pattern = b:ECcommentOpen . '.*' . '\(' . s:ex_special_mark_pattern . '\)' . '.* { ' . b:ECcommentClose
+    let end_pattern = b:ECcommentOpen . ' }.*' . '\(' . s:ex_special_mark_pattern . '\)' . '.* end ' . b:ECcommentClose
 
     " found '#if 0' first
     while match(cur_line, start_pattern ) == -1
@@ -936,6 +976,25 @@ endfunction " >>>
 "/////////////////////////////////////////////////////////////////////////////
 
 " ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#IsRegisteredPluginBuffer ( buffer_name ) " <<<
+    " check if the buffer filetype is register in the plugin filetype list 
+    if index( g:ex_plugin_registered_filetypes, getbufvar( a:buffer_name, '&filetype' ), 0, 1 ) >= 0
+        return 1
+    endif
+
+    " check if the buffer name is register in the plugin buffername list 
+    if index( g:ex_plugin_registered_bufnames, fnamemodify( a:buffer_name, ":p:t" ), 0, 1 ) >= 0
+        return 1
+    endif
+
+    return 0
+endfunction " >>>
+
+
+" ------------------------------------------------------------------ 
 " Desc: Record current buf num when leave
 " FIXME: when you split window/open the same file in two window, you can only get the original bufwinnr() by the bufnr().
 " FIXME: :sp will trigger the WinEnter, find a way to use it.
@@ -943,7 +1002,7 @@ endfunction " >>>
 
 function exUtility#RecordCurrentBufNum() " <<<
     let short_bufname = fnamemodify(bufname('%'),":p:t")
-    if index( g:ex_plugin_list, short_bufname, 0, 1 ) == -1 " compare ignore case
+    if !exUtility#IsRegisteredPluginBuffer(bufname('%'))
         let s:ex_editbuf_num = bufnr('%')
     elseif short_bufname !=# "-MiniBufExplorer-"
         let s:ex_pluginbuf_num = bufnr('%')
@@ -957,7 +1016,7 @@ endfunction " >>>
 function exUtility#RecordSwapBufInfo() " <<<
     let bufnr = bufnr('%')
     let short_bufname = fnamemodify(bufname(bufnr),":p:t")
-    if buflisted(bufnr) && bufloaded(bufnr) && bufexists(bufnr) && index( g:ex_plugin_list, short_bufname, 0, 1 ) == -1
+    if buflisted(bufnr) && bufloaded(bufnr) && bufexists(bufnr) && !exUtility#IsRegisteredPluginBuffer(bufname('%'))
         let s:ex_swap_buf_num = bufnr
         let s:ex_swap_buf_pos = getpos('.')
     endif
@@ -972,7 +1031,7 @@ function exUtility#SwapToLastEditBuffer() " <<<
     let cur_bufnr = bufnr('%')
     let cru_short_bufname = fnamemodify(bufname('%'),":p:t")
 
-    if index( g:ex_plugin_list, cru_short_bufname, 0, 1 ) != -1 " check it is plugin window or not
+    if exUtility#IsRegisteredPluginBuffer ( bufname('%') ) " check it is plugin window or not
         call exUtility#WarningMsg("Buffer: " .bufname(cur_bufnr).  " can't be switch.")
         return
     endif
@@ -980,7 +1039,7 @@ function exUtility#SwapToLastEditBuffer() " <<<
     " check if last buffer existed and listed, swap if accessable
     let last_bufnr = bufnr("#")
     let last_short_bufname = fnamemodify(bufname(last_bufnr),":p:t")
-    if buflisted(last_bufnr) && bufloaded(last_bufnr) && bufexists(last_bufnr) && index( g:ex_plugin_list, last_short_bufname, 0, 1 ) == -1
+    if buflisted(last_bufnr) && bufloaded(last_bufnr) && bufexists(last_bufnr) && !exUtility#IsRegisteredPluginBuffer(bufname('%'))
         let tmp_swap_buf_pos = deepcopy(s:ex_swap_buf_pos)
         let tmp_swap_buf_nr = s:ex_swap_buf_num
         let s:ex_swap_buf_pos = getpos('.')
@@ -1112,7 +1171,7 @@ function exUtility#Kwbd(kwbdStage) " <<<
         " check it is plugin window, if yes, close it directly to prevent use \bd
         " close, reopen will loose plugin ability problem
         let cru_short_bufname = fnamemodify(bufname('%'),":p:t")
-        if index( g:ex_plugin_list, cru_short_bufname, 0, 1 ) != -1 
+        if exUtility#IsRegisteredPluginBuffer(bufname('%')) 
             silent exec 'close'
             call exUtility#GotoEditBuffer()
             return
@@ -1229,6 +1288,9 @@ function exUtility#RestoreLastEditBuffers() " <<<
 
         " go to last edit buffer
         call exUtility#GotoEditBuffer()
+        if exists( ':UMiniBufExplorer' )
+            silent exec 'UMiniBufExplorer'
+        endif
     endif
 endfunction  " >>>
 
@@ -1392,9 +1454,29 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
+function exUtility#GetCscopeFileFilter(filter_list) " <<<
+    let cscope_file_filter_list = []
+    for lang_type in g:ex_cscope_langs 
+        if has_key (s:ex_exvim_lang_map, lang_type)
+            for file_type in s:ex_exvim_lang_map[lang_type] 
+                if index(a:filter_list,file_type) != -1
+                    silent call add(cscope_file_filter_list,file_type)
+                endif
+            endfor
+        endif
+    endfor
+    return cscope_file_filter_list
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
 function exUtility#GetProjectFileFilterCommand() " <<<
     let filter_list = split(s:ex_project_file_filter,',')
     let filter_command = ''
+
+    let cscope_filter_list = exUtility#GetCscopeFileFilter(filter_list)
     let cscope_filter_command = ''
 
     if has ('win32')
@@ -1402,6 +1484,8 @@ function exUtility#GetProjectFileFilterCommand() " <<<
         "       list .h files twice, also *.h will not list .H files. To prevent 
         "       this, we detect the filter_list if same file suffix found, we 
         "       choose upper case. 
+
+        " general filter command
         let filter_list2 = []
         for item1 in filter_list
             let found = 0
@@ -1414,19 +1498,32 @@ function exUtility#GetProjectFileFilterCommand() " <<<
                 silent call add ( filter_list2, toupper(item1) )
             endif
         endfor
-
         for item in filter_list2
             let filter_command .= '*.' . item . ' '
-            if item =~ '^c$\|^cpp$\|^cxx$\|^c++$\|^cc$\|^h$\|^hh$\|^hxx$\|^hpp$\|^inl$\|^hlsl$\|^vsh$\|^psh$\|^fx$\|^fxh$\|^cg$\|^shd$\|^glsl$'
-                let cscope_filter_command .= '*.' . item . ' '
+        endfor
+
+        " cscope filter command
+        let filter_list2 = []
+        for item1 in cscope_filter_list
+            let found = 0
+            for item2 in filter_list2
+                if item1 ==? item2
+                    let found = 1
+                endif
+            endfor
+            if found == 0
+                silent call add ( filter_list2, toupper(item1) )
             endif
+        endfor
+        for item in filter_list2
+            let cscope_filter_command .= '*.' . item . ' '
         endfor
     elseif has ('unix')
         for item in filter_list 
             let filter_command .= item . '\|'
-            if item =~ '^c$\|^cpp$\|^cxx$\|^c++$\|^cc$\|^h$\|^hh$\|^hxx$\|^hpp$\|^inl$\|^hlsl$\|^vsh$\|^psh$\|^fx$\|^fxh$\|^cg$\|^shd$\|^glsl$'
-                let cscope_filter_command .= item . '\|'
-            endif
+        endfor
+        for item in cscope_filter_list 
+            let cscope_filter_command .= item . '\|'
         endfor
         let filter_command = strpart( filter_command, 0, len(filter_command) - 2)
         let cscope_filter_command = strpart( cscope_filter_command, 0, len(cscope_filter_command) - 2)
@@ -1440,16 +1537,24 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#GetProjectFileFilterPattern() " <<<
+    "
     let filter_list = split(s:ex_project_file_filter,',')
     let filter_pattern = ''
     let cscope_filter_pattern = ''
 
+    let cscope_filter_list = exUtility#GetCscopeFileFilter(filter_list)
+    let cscope_filter_pattern = ''
+
+    "
     for item in filter_list
         let filter_pattern .= '\\.' . item . '$|'
-        if item =~ '^c$\|^cpp$\|^cxx$\|^c++$\|^cc$\|^h$\|^hh$\|^hxx$\|^hpp$\|^inl$\|^hlsl$\|^vsh$\|^psh$\|^fx$\|^fxh$\|^cg$\|^shd$\|^glsl$'
-            let cscope_filter_pattern .= '\\.' . item . '$|'
-        endif
     endfor
+
+    for item in cscope_filter_list
+        let cscope_filter_pattern .= '\\.' . item . '$|'
+    endfor
+
+    "
     let filter_pattern = strpart( filter_pattern, 0, len(filter_pattern) - 1)
     let cscope_filter_pattern = strpart( cscope_filter_pattern, 0, len(cscope_filter_pattern) - 1)
     return [filter_pattern,cscope_filter_pattern]
@@ -1712,16 +1817,22 @@ function exUtility#Browse(dir, file_filter, dir_filter, filename_list ) " <<<
         while list_count <= list_last
             if isdirectory(file_list[list_idx]) == 0 " remove not fit file types
                 let suffix = fnamemodify ( file_list[list_idx], ":e" ) 
-                if match ( suffix, a:file_filter ) == -1 " if not found file type in file filter
-                    silent call remove(file_list,list_idx)
-                    let list_idx -= 1
-                else " move the file to the end of the list
+                " move the file to the end of the list
+                if ( match ( suffix, a:file_filter ) != -1 ) ||
+                 \ ( suffix == '' && match ( 'NULL', a:file_filter ) != -1 ) 
                     let file = remove(file_list,list_idx)
                     silent call add(file_list, file)
-                    let list_idx -= 1
+                else " if not found file type in file filter
+                    silent call remove(file_list,list_idx)
                 endif
+                let list_idx -= 1
             elseif a:dir_filter != '' " remove not fit dirs
                 if match( file_list[list_idx], a:dir_filter ) == -1 " if not found dir name in dir filter
+                    silent call remove(file_list,list_idx)
+                    let list_idx -= 1
+                endif
+            elseif len (s:ex_level_list) == 0 " in first level directory, if we _vimfiles* folders, remove them
+                if match( file_list[list_idx], '\<_vimfiles.*' ) != -1
                     silent call remove(file_list,list_idx)
                     let list_idx -= 1
                 endif
@@ -2207,7 +2318,7 @@ function exUtility#UpdateVimFiles( type ) " <<<
         let vimentry_name = '_' . g:exES_VimEntryName
     endif
     let quick_gen_custom = 'quick_gen_project' . vimentry_name . '_custom.' . suffix
-    if findfile( quick_gen_custom, g:exES_CWD ) != ""
+    if findfile( quick_gen_custom, escape(g:exES_CWD,' \') ) != ""
         let quick_gen_script = quick_gen_custom
     endif
 
@@ -2480,6 +2591,7 @@ endfunction " >>>
 
 function exUtility#GetQuickGenSupportMap( lang_type ) " <<<
     let support_map = {'ctags':'false', 'symbol':'false', 'inherit':'false', 'cscope':'false', 'idutils':'false', 'filenamelist':'false'}
+    let lang_list = split( a:lang_type, ' ' )
 
     " check plugin level support
     if exists('g:loaded_extagselect') && g:loaded_extagselect 
@@ -2502,8 +2614,18 @@ function exUtility#GetQuickGenSupportMap( lang_type ) " <<<
     " check language level support
 
     " check ctags support
+    let found_lang = 0
     if support_map['ctags'] == 'true'
-        if a:lang_type !~# '\<c\>\|\<cpp\>\|\<c\>#\|\<shader\>\|\<python\>\|\<vim\>\|\<javascript\>\|\<java\>\|\<html\>\|\<lua\>\|\<uc\>\|\<math\>'
+        " search a:lang_type in ctags_lang_map
+        for item in lang_list
+            if has_key( s:ex_ctags_lang_map, item )
+                let found_lang = 1
+                break
+            endif
+        endfor
+
+        " if we don't found the language, set it to false
+        if found_lang == 0
             let support_map['ctags'] = 'false'
         endif
     endif
@@ -2523,15 +2645,29 @@ function exUtility#GetQuickGenSupportMap( lang_type ) " <<<
     endif
 
     " check cscope support
+    let found_lang = 0
     if support_map['cscope'] == 'true'
-        if a:lang_type !~# '\<c\>\|\<cpp\>'
+        " search a:lang_type in ctags_lang_map
+        for item in lang_list
+            if index ( g:ex_cscope_langs, item ) >= 0
+                let found_lang = 1
+                break
+            endif
+        endfor
+
+        " if we don't found the language, set it to false
+        if found_lang == 0
             let support_map['cscope'] = 'false'
         endif
     endif
 
     " check filenamelist support
-    if support_map['ctags'] == 'false' && support_map['cscope'] == 'false'
-        let support_map['filenamelist'] = 'false'
+    if exists( 'g:exES_LookupFileTag' )
+        let support_map['filenamelist'] = 'true'
+    else
+        if support_map['ctags'] == 'false' && support_map['cscope'] == 'false'
+            let support_map['filenamelist'] = 'false'
+        endif
     endif
 
     " check global support
@@ -2723,10 +2859,10 @@ function exUtility#CreateQuickGenProject() " <<<
     " write pre and post file
     let quick_gen_custom_pre = g:exES_vimfiles_dirname . '/quick_gen_project_pre_custom.' . script_suffix
     let quick_gen_custom_post = g:exES_vimfiles_dirname . '/quick_gen_project_post_custom.' . script_suffix
-    if findfile( quick_gen_custom_pre, g:exES_CWD ) == ""
+    if findfile( quick_gen_custom_pre, escape(g:exES_CWD,' \') ) == ""
         call writefile ( [], quick_gen_custom_pre )
     endif
-    if findfile( quick_gen_custom_post, g:exES_CWD ) == ""
+    if findfile( quick_gen_custom_post, escape(g:exES_CWD,' \') ) == ""
         call writefile ( [], quick_gen_custom_post )
     endif
 
@@ -3119,7 +3255,7 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#EditVimEntry() " <<<
-    if exists( 'g:exES_VimEntryName' ) && exists( 'g:exES_CWD' ) && findfile ( g:exES_VimEntryName.'.vimentry', g:exES_CWD ) != ""
+    if exists( 'g:exES_VimEntryName' ) && exists( 'g:exES_CWD' ) && findfile ( g:exES_VimEntryName.'.vimentry', escape(g:exES_CWD,' \') ) != ""
         let vimentry_file = g:exES_VimEntryName . '.vimentry'
         echon 'edit vimentry file: ' . vimentry_file . "\r"
         call exUtility#GotoEditBuffer ()
@@ -3473,7 +3609,7 @@ endfunction " >>>
 function exUtility#DisplayHelp() " <<<
     " If it's not funtional window, do not display help
 
-    if exUtility#IsFunctionalbuf("")
+    if exUtility#IsRegisteredPluginBuffer(bufname('%'))
         return
     endif
 
@@ -3592,16 +3728,6 @@ function exUtility#GetHelpTextLength() " <<<
         let linenum+=1
     endwhile
     return linenum-1
-endfunction " >>>
-
-" ------------------------------------------------------------------ 
-" Desc: 
-" ------------------------------------------------------------------ 
-
-" --ex_IsFunctionalbuf--
-" return true if the buf is a functional buf
-function exUtility#IsFunctionalbuf(Buf_Name) " <<<
-    return index( g:ex_plugin_list, fnamemodify(a:Buf_Name,":p:t") ) >=0
 endfunction " >>>
 
 "/////////////////////////////////////////////////////////////////////////////

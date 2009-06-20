@@ -313,7 +313,7 @@ noremap <unique> <Down> gj
 
 " map for completion see :help ins-completion for whole completions
 " search tags 
-inoremap <unique> <c-j> <C-X><C-]>
+inoremap <unique> <c-]> <C-X><C-]>
 " search in current files, preview first. remove the original c-p
 inoremap <unique> <c-p> <C-X><C-P>
 
@@ -380,7 +380,7 @@ au BufNewFile,BufEnter * set cpoptions+=d " NOTE: ctags find the tags file from 
 au BufEnter * :syntax sync fromstart " ensure every file does syntax highlighting (full) 
 au BufNewFile,BufRead *.avs set syntax=avs " for avs syntax file.
 
-au BufEnter *.py,*.pyw call CheckIfExpandTab() " if edit python scripts, check if have \t. ( python said: the programme can only use \t or not, but can't use them together )
+au FileType python call CheckIfExpandTab() " if edit python scripts, check if have \t. ( python said: the programme can only use \t or not, but can't use them together )
 function CheckIfExpandTab()
     let has_noexpandtab = search('^\t','wn')
     let has_expandtab = search('^    ','wn')
@@ -578,8 +578,11 @@ let g:ex_comment_lable_keyword .= 'HACK OPTME HARDCODE REFACTORING DUPLICATE RED
 vnoremap <unique> <Leader>mk :MK 
 nnoremap <unique> <Leader>mk :call exUtility#RemoveSpecialMarkText() <CR>
 
-" add plugin we use to prevent them record as edit-buffer
-let g:ex_plugin_list = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]"] 
+" register buffer names of plugins.
+let g:ex_plugin_registered_bufnames = ["-MiniBufExplorer-","__Tag_List__","\[Lookup File\]", "\[BufExplorer\]"] 
+
+" register filetypes of plugins.
+let g:ex_plugin_registered_filetypes = ["ex_plugin","ex_project","taglist","nerdtree"] 
 
 " default languages
 let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'math', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug' ] 
@@ -645,14 +648,14 @@ function g:ex_CustomHighlight()
     " special color settings 
     " ======================================================== 
 
-    if g:colors_name == 'ex_lightgray'
+    if exists('g:colors_name') && g:colors_name == 'ex_lightgray'
         " ex plugins
         hi ex_SynSearchPattern gui=bold guifg=DarkRed guibg=Gray term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray
         hi exMH_GroupNameEnable term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray gui=bold guifg=DarkRed guibg=Gray
         hi exMH_GroupNameDisable term=bold cterm=bold ctermfg=Red ctermbg=DarkGray gui=bold guifg=DarkGray guibg=Gray
 
         " other plugins
-    hi MBEVisibleNormal term=bold cterm=bold ctermbg=DarkGray ctermfg=Black gui=bold guibg=DarkGray guifg=Black
+        hi MBEVisibleNormal term=bold cterm=bold ctermbg=DarkGray ctermfg=Black gui=bold guibg=DarkGray guifg=Black
         hi MBENormal ctermbg=Gray ctermfg=DarkGray guibg=Gray guifg=DarkGray
         hi MyTagListTitle term=bold cterm=bold ctermfg=DarkRed ctermbg=Gray gui=bold guifg=DarkRed guibg=Gray 
     endif
@@ -708,6 +711,11 @@ let g:exSL_SymbolSelectCmd = 'TS'
 nnoremap <unique> <silent> <Leader>tt :ExjsToggle<CR>
 nnoremap <unique> <silent> <Leader>tb :BackwardStack<CR>
 nnoremap <unique> <silent> <Leader>tf :ForwardStack<CR>
+nnoremap <unique> <silent> <BS> :BackwardStack<CR>
+if has("gui_running") "  the <alt> key is only available in gui mode.
+    noremap <unique> <A-Left> :BackwardStack<CR>
+    noremap <unique> <A-Right> :ForwardStack<CR>
+endif
 
 " ------------------------------------------------------------------ 
 " Desc: exCscope
@@ -752,12 +760,14 @@ nnoremap <unique> <silent> <Leader>ad :ExmhHL 0 <CR>
 nnoremap <unique> <silent> <A-S-p> :EXProject<CR>
 " NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
 nmap <unique> <A-S-o> :EXProject<CR>:redraw<CR>/
+nmap <unique> <A-S-b> :EXBufExplorer<CR>:redraw<CR>/
 nnoremap <unique> <leader>ff :EXProject<CR>:redraw<CR>/\[[^\CF]*\]\c.*
 nnoremap <unique> <leader>fd :EXProject<CR>:redraw<CR>/\[\CF\]\c.*
 nnoremap <unique> <leader>fc :ExpjGotoCurrentFile<CR>
 
 let g:exPJ_backto_editbuf = 1
 let g:exPJ_close_when_selected = 0
+let g:exPJ_window_width = 30
 let g:exPJ_window_width_increment = 50
 
 " ------------------------------------------------------------------ 
@@ -881,11 +891,11 @@ let g:miniBufExplMaxSize = 1 " <max lines: default 0> setting this to 0 will mea
 " ------------------------------------------------------------------ 
 
 " set Ctrl+j in insert mode, like VS.Net
-imap <unique> <C-]> <C-X><C-O>
+imap <unique> <C-j> <C-X><C-O>
 " :inoremap <expr> <cr> pumvisible() ? "\<c-y>" : "\<c-g>u\<cr>" 
 
 " set completeopt as don't show menu and preview
-set completeopt=menuone
+au FileType c,cpp,hlsl set completeopt=menuone
 
 " use global scope search
 let OmniCpp_GlobalScopeSearch = 1
@@ -925,6 +935,14 @@ let OmniCpp_MayCompleteScope = 0
 let OmniCpp_SelectFirstItem = 0
 
 " ------------------------------------------------------------------ 
+" Desc: pythoncomplete
+" ------------------------------------------------------------------ 
+
+" DISABLE: au FileType python set completeopt=menuone,preview
+" NOTE: the preview can show the internal document in a preview window, but I don't think it have too much help
+au FileType python set completeopt=menuone
+
+" ------------------------------------------------------------------ 
 " Desc: EnhCommentify
 " ------------------------------------------------------------------ 
 
@@ -953,6 +971,9 @@ function EnhCommentifyCallback(ft)
     " add hlsl
     if a:ft == 'hlsl'
         let b:ECcommentOpen = '//'
+        let b:ECcommentClose = ''
+    elseif a:ft == 'snippet'
+        let b:ECcommentOpen = '#'
         let b:ECcommentClose = ''
     endif
 endfunction
@@ -1000,6 +1021,19 @@ map <silent><unique> <Leader>ww <Plug>VimwikiGoHome
 " vimwiki file process
 au FileType vimwiki command! W call exUtility#SaveAndConvertVimwiki(0)
 au FileType vimwiki command! WA call exUtility#SaveAndConvertVimwiki(1)
+
+" ------------------------------------------------------------------ 
+" Desc: snipMate
+" ------------------------------------------------------------------ 
+
+let g:snips_author = g:ex_usr_name
+let g:snippets_dir = '$VIM/toolkit/snippets/'
+
+" ------------------------------------------------------------------ 
+" Desc: NERD_tree 
+" ------------------------------------------------------------------ 
+
+let g:NERDTreeWinSize = exists('g:exPJ_window_width') ? g:exPJ_window_width : 30 
 
 "/////////////////////////////////////////////////////////////////////////////
 " Other settings

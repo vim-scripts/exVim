@@ -559,7 +559,7 @@ function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump
     " push entry state after we get the search result
     let stack_info = {}
     let stack_info.pattern = getline(".")
-    if &filetype == "ex_plugin" || &filetype == "ex_project"
+    if exUtility#IsRegisteredPluginBuffer (bufname('%'))
         let stack_info.file_name = ''
     else
         let stack_info.file_name = bufname('%')
@@ -588,7 +588,6 @@ function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump
     " clear screen and put new result
     silent exec '1,$d _'
     call exUtility#HighlightConfirmLine()
-    let line_num = line('.')
     silent put = search_result
 
     " auto sort search results if the number of results less than g:exGS_lines_for_autosort lines
@@ -599,8 +598,10 @@ function s:exGS_GetGlobalSearchResult(search_pattern, search_method, direct_jump
     endif
 
     " Init search state
-    let s:exGS_select_idx = line_num+1
-    silent call cursor( line_num+1, 1 )
+    silent normal gg
+    let line_num = search('----------' . a:search_pattern . '----------','w')
+    let s:exGS_select_idx = line_num
+    silent call cursor( s:exGS_select_idx, 1 )
     silent normal zz
 endfunction " >>>
 
@@ -677,12 +678,14 @@ function s:exGS_GetFilenameSearchResult(search_pattern, search_method) " <<<
     " clear screen and put new result
     silent exec '1,$d _'
     call exUtility#HighlightConfirmLine()
-    let line_num = line('.')
     silent put = search_result
 
     " Init search state
-    let s:exGS_select_idx = line_num+1
-    silent call cursor( line_num+1, 1 )
+    silent normal gg
+    let line_num = search('----------' . a:search_pattern . '----------','w')
+    let s:exGS_select_idx = line_num
+    silent call cursor( s:exGS_select_idx, 1 )
+    silent normal zz
 endfunction " >>>
 
 " ======================================================== 
@@ -840,7 +843,7 @@ function s:exGS_ShowPickedResult( search_pattern, line_start, line_end, edit_mod
         silent put = s:exGS_picked_search_result
         silent put = s:exGS_fold_end
     endif
-
+    silent normal zz
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
