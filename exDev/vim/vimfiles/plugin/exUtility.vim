@@ -93,6 +93,14 @@ if $EX_DEV ==# ""
 endif
 
 " ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+if !exists ( "g:ex_toolkit_path" )
+    let g:ex_toolkit_path = $EX_DEV.'/vim/toolkit'
+endif
+
+" ------------------------------------------------------------------ 
 " Desc: general key mappings 
 " ------------------------------------------------------------------ 
 
@@ -116,6 +124,29 @@ endif
 " general key mapping: select confirm
 if !exists ( "g:ex_keymap_confirm" )
     let g:ex_keymap_confirm = "<enter>"
+endif
+
+" ------------------------------------------------------------------ 
+" Desc: smart detect ctags
+" ------------------------------------------------------------------ 
+
+if !exists('g:ex_ctags_cmd')
+    if executable('exuberant-ctags')
+        " On Debian Linux, exuberant ctags is installed
+        " as exuberant-ctags
+        let g:ex_ctags_cmd = 'exuberant-ctags'
+    elseif executable('exctags')
+        " On Free-BSD, exuberant ctags is installed as exctags
+        let g:ex_ctags_cmd = 'exctags'
+    elseif executable('ctags')
+        let g:ex_ctags_cmd = 'ctags'
+    elseif executable('ctags.exe')
+        let g:ex_ctags_cmd = 'ctags.exe'
+    elseif executable('tags')
+        let g:ex_ctags_cmd = 'tags'
+    else
+        let g:ex_ctags_cmd = ''
+    endif
 endif
 
 " ======================================================== 

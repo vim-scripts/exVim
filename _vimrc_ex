@@ -757,18 +757,29 @@ nnoremap <unique> <silent> <Leader>ad :ExmhHL 0 <CR>
 " Desc: exProject
 " ------------------------------------------------------------------ 
 
-nnoremap <unique> <silent> <A-S-p> :EXProject<CR>
 " NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
 nmap <unique> <A-S-o> :EXProject<CR>:redraw<CR>/
-nmap <unique> <A-S-b> :EXBufExplorer<CR>:redraw<CR>/
-nnoremap <unique> <leader>ff :EXProject<CR>:redraw<CR>/\[[^\CF]*\]\c.*
-nnoremap <unique> <leader>fd :EXProject<CR>:redraw<CR>/\[\CF\]\c.*
+nnoremap <unique> <silent> <A-S-p> :EXProject<CR>
+nnoremap <unique> <leader>ff :EXProject<CR>:redraw<CR>/\[\l*\]\zs.*
+nnoremap <unique> <leader>fd :EXProject<CR>:redraw<CR>/\[\u\]\zs.*
 nnoremap <unique> <leader>fc :ExpjGotoCurrentFile<CR>
 
 let g:exPJ_backto_editbuf = 1
 let g:exPJ_close_when_selected = 0
 let g:exPJ_window_width = 30
 let g:exPJ_window_width_increment = 50
+
+" ------------------------------------------------------------------ 
+" Desc: exBufExplorer 
+" ------------------------------------------------------------------ 
+
+" NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
+nmap <unique> <A-S-b> :EXBufExplorer<CR>:redraw<CR>/
+nnoremap <unique> <silent> <leader>bs :EXBufExplorer<CR>
+nnoremap <unique> <leader>bk :EXAddBookmarkDirectly<CR>
+
+let g:exBE_backto_editbuf = 0
+let g:exBE_close_when_selected = 0
 
 " ------------------------------------------------------------------ 
 " Desc: exMarksBrowser 
@@ -808,6 +819,11 @@ function g:exES_PostUpdate()
     " set lookup file plugin variables
 	if exists( 'g:exES_LookupFileTag' )
         let g:LookupFile_TagExpr='"'.g:exES_LookupFileTag.'"'
+        if exists(':LUCurFile')
+            " NOTE: the second <CR>, if only one file, will jump to it directly.
+            unmap gf
+            nnoremap <unique> <silent> gf :LUCurFile<CR>
+        endif
     endif
 
 	" set visual_studio plugin variables
@@ -1001,7 +1017,8 @@ let showmarks_hlline_upper = 0
 nnoremap <unique> <A-S-i> :LUTags<CR>
 nnoremap <unique> <leader>lf :LUTags<CR>
 nnoremap <unique> <leader>lb :LUBufs<CR>
-nnoremap <unique> <silent> <Leader>lg :LUCurWord<CR>
+nnoremap <unique> <silent> <Leader>ll :LUCurWord<CR>
+
 let g:LookupFile_TagExpr = ''
 let g:LookupFile_MinPatLength = 3
 let g:LookupFile_PreservePatternHistory = 0

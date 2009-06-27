@@ -1067,6 +1067,11 @@ function exUtility#GotoBuffer(cmd) " <<<
         let gui_win_pos_y = getwinposy()
     endif
 
+    " if this is a registered plugin buffer, then go to the edit buffer first 
+    if exUtility#IsRegisteredPluginBuffer(bufname('%')) 
+        call exUtility#GotoEditBuffer()
+    endif
+
     " jump buffer
     if a:cmd ==# 'next'
         silent exec "bn!"
@@ -1185,7 +1190,7 @@ function exUtility#Kwbd(kwbdStage) " <<<
         let g:kwbdBufNum = bufnr("%") 
         let g:kwbdWinNum = winnr() 
         windo call exUtility#Kwbd(2) 
-        execute "normal " . g:kwbdWinNum . "" 
+        exe g:kwbdWinNum . 'wincmd w'
         let g:buflistedLeft = 0 
         let g:bufFinalJump = 0 
         let l:nBufs = bufnr("$") 
@@ -1210,7 +1215,7 @@ function exUtility#Kwbd(kwbdStage) " <<<
                 let l:newBuf = bufnr("%") 
                 windo if(buflisted(winbufnr(0))) | execute "b! " . l:newBuf | endif 
             endif 
-            execute "normal " . g:kwbdWinNum . "" 
+            exe g:kwbdWinNum . 'wincmd w'
         endif 
         if(buflisted(g:kwbdBufNum) || g:kwbdBufNum == bufnr("%")) 
             execute "bd! " . g:kwbdBufNum 
@@ -1258,13 +1263,8 @@ function exUtility#SaveRestoreInfo() " <<<
         if getbufvar( last_buf_nr, '&buflisted') == 1
             " load last edit buffer
             silent call add ( cmdlist, "edit " . bufname(last_buf_nr) )
-            silent call add ( cmdlist, "setlocal filetype=" . getbufvar(last_buf_nr,'&filetype') )
             let save_cursor = getpos(".")
             silent call add ( cmdlist, "call cursor(" . save_cursor[1] . "," . save_cursor[2] . ")" )
-
-            " redraw screen
-            silent call add ( cmdlist, "redraw!" )
-            silent call add ( cmdlist, "redrawstatus!" )
         endif
 
         "
@@ -1288,9 +1288,7 @@ function exUtility#RestoreLastEditBuffers() " <<<
 
         " go to last edit buffer
         call exUtility#GotoEditBuffer()
-        if exists( ':UMiniBufExplorer' )
-            silent exec 'UMiniBufExplorer'
-        endif
+        doautocmd BufNewFile,BufRead,BufEnter,BufWinEnter
     endif
 endfunction  " >>>
 
@@ -2500,12 +2498,8 @@ function exUtility#CopyQuickGenProject() " <<<
     let quick_gen_script = 'quick_gen_project_custom.' . script_suffix
 
     " get quick gen script from repository
-    let full_quick_gen_script = ''
-    if has("win32")
-        let full_quick_gen_script = fnamemodify( $EX_DEV . "\\vim\\toolkit\\quickgen\\" . folder_name . "\\" . quick_gen_script, ":p")
-    elseif has("unix")
-        let full_quick_gen_script = fnamemodify( $EX_DEV . '/vim/toolkit/quickgen/' . folder_name . '/' . quick_gen_script, ":p" )
-    endif
+    let full_quick_gen_script = fnamemodify( g:ex_toolkit_path . '/' . folder_name . '/' . quick_gen_script, ":p" )
+
     if findfile( full_quick_gen_script ) == ""
         call exUtility#WarningMsg('Error: file ' . full_quick_gen_script . ' not found')
     else
@@ -2594,7 +2588,7 @@ function exUtility#GetQuickGenSupportMap( lang_type ) " <<<
     let lang_list = split( a:lang_type, ' ' )
 
     " check plugin level support
-    if exists('g:loaded_extagselect') && g:loaded_extagselect 
+    if exists('g:loaded_extagselect') && g:loaded_extagselect && g:ex_ctags_cmd != ''
         let support_map['ctags'] = 'true'
     endif
     if exists('g:loaded_exsymboltable') && g:loaded_exsymboltable 
@@ -2793,10 +2787,12 @@ function exUtility#CreateQuickGenProject() " <<<
     " init platform dependence value and write script
     if has ('win32')
         let script_suffix = 'bat'
+        let fmt_toolkit_path = exUtility#Pathfmt( g:ex_toolkit_path, 'windows')
 
         silent call add( text_list, '@echo off' )
         silent call add( text_list, 'set script_type=autogen' )
         silent call add( text_list, 'set cwd=%~pd0' )
+        silent call add( text_list, 'set toolkit_path='.fmt_toolkit_path )
         silent call add( text_list, 'set lang_type='.lang_type ) " 
         silent call add( text_list, 'set vimfiles_path='.g:exES_vimfiles_dirname )
         silent call add( text_list, 'set file_filter='.file_filter_list[0] )
@@ -2810,21 +2806,25 @@ function exUtility#CreateQuickGenProject() " <<<
         silent call add( text_list, 'set support_inherit='.support_map['inherit'] )
         silent call add( text_list, 'set support_cscope='.support_map['cscope'] )
         silent call add( text_list, 'set support_idutils='.support_map['idutils'] )
+        silent call add( text_list, 'set ctags_cmd='.g:ex_ctags_cmd )
         silent call add( text_list, 'set ctags_options='.ctags_options )
         silent call add( text_list, 'if exist .\%vimfiles_path%\quick_gen_project_pre_custom.bat (' )
         silent call add( text_list, '    call .\%vimfiles_path%\quick_gen_project_pre_custom.bat' )
         silent call add( text_list, ')' )
-        silent call add( text_list, 'call "%EX_DEV%\vim\toolkit\quickgen\batch\quick_gen_project.bat" %1' )
+        silent call add( text_list, 'call "%toolkit_path%\quickgen\batch\quick_gen_project.bat" %1' )
         silent call add( text_list, 'if exist .\%vimfiles_path%\quick_gen_project_post_custom.bat (' )
         silent call add( text_list, '    call .\%vimfiles_path%\quick_gen_project_post_custom.bat' )
         silent call add( text_list, ')' )
         silent call add( text_list, 'echo on' )
     elseif has ('unix')
         let script_suffix = 'sh'
+        let fmt_toolkit_path = exUtility#Pathfmt( g:ex_toolkit_path, 'unix')
 
+        silent call add( text_list, '#!/bin/sh' )
         silent call add( text_list, 'export script_type="autogen"' )
         silent call add( text_list, 'export EX_DEV='.'"'.$EX_DEV.'"' )
         silent call add( text_list, 'export cwd=${PWD}' ) " 
+        silent call add( text_list, 'export toolkit_path='.fmt_toolkit_path )
         silent call add( text_list, 'export lang_type='.'"'.lang_type.'"' ) " 
         silent call add( text_list, 'export vimfiles_path='.'"'.g:exES_vimfiles_dirname.'"' )
         silent call add( text_list, 'export file_filter='.'"'.file_filter_list[0].'"' )
@@ -2838,13 +2838,14 @@ function exUtility#CreateQuickGenProject() " <<<
         silent call add( text_list, 'export support_inherit='.'"'.support_map['inherit'].'"' )
         silent call add( text_list, 'export support_cscope='.'"'.support_map['cscope'].'"' )
         silent call add( text_list, 'export support_idutils='.'"'.support_map['idutils'].'"' )
+        silent call add( text_list, 'export ctags_cmd='.'"'.g:ex_ctags_cmd.'"' )
         silent call add( text_list, 'export ctags_options='.'"'.ctags_options.'"' )
         silent call add( text_list, 'if [ -f "./${vimfiles_path}/quick_gen_project_pre_custom.sh" ]; then' )
-        silent call add( text_list, '    bash ./${vimfiles_path}/quick_gen_project_pre_custom.sh' )
+        silent call add( text_list, '    sh ./${vimfiles_path}/quick_gen_project_pre_custom.sh' )
         silent call add( text_list, 'fi' )
-        silent call add( text_list, 'bash ${EX_DEV}/vim/toolkit/quickgen/bash/quick_gen_project.sh $1' )
+        silent call add( text_list, 'sh ${toolkit_path}/quickgen/bash/quick_gen_project.sh $1' )
         silent call add( text_list, 'if [ -f "./${vimfiles_path}/quick_gen_project_post_custom.sh" ]; then' )
-        silent call add( text_list, '    bash ./${vimfiles_path}/quick_gen_project_post_custom.sh' )
+        silent call add( text_list, '    sh ./${vimfiles_path}/quick_gen_project_post_custom.sh' )
         silent call add( text_list, 'fi' )
     endif
 
@@ -3541,7 +3542,8 @@ function exUtility#CopySyntaxHighlighterFiles( dest_path ) " <<<
         let src = '' 
         let cmd = ''
         if has("win32")
-            let src = fnamemodify( $EX_DEV . "\\vim\\toolkit\\SyntaxHighlighter", ":p")
+            let src = fnamemodify( g:ex_toolkit_path . "\\SyntaxHighlighter", ":p")
+            let src = exUtility#Pathfmt( src, 'windows')
 
             " remove last \ if found in src path
             if ( src[strlen(src)-1] == '\' )
@@ -3555,7 +3557,8 @@ function exUtility#CopySyntaxHighlighterFiles( dest_path ) " <<<
 
             let cmd = copy_cmd . ' ' . src . ' ' . dest 
         elseif has("unix")
-            let src = fnamemodify( $EX_DEV . '/vim/toolkit/SyntaxHighlighter/', ":p" )
+            let src = fnamemodify( g:ex_toolkit_path . '/SyntaxHighlighter/', ":p")
+            let src = exUtility#Pathfmt( src, 'unix')
 
             " remove last \ if found in dest path
             if ( dest[strlen(dest)-1] == '/' )

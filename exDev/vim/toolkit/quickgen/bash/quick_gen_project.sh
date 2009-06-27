@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # ======================================================================================
 # File         : quick_gen_project.sh
 # Author       : Wu Jie 
@@ -31,17 +33,25 @@ fi
 # Desc: cwd 
 # ------------------------------------------------------------------ 
 
-if test "${cwd}" == ""; then
+if test "${cwd}" = ""; then
     echo error: variable: cwd not set
     errstatus=1
     exit $errstatus
 fi
 
 # ------------------------------------------------------------------ 
+# Desc: toolkit_path 
+# ------------------------------------------------------------------ 
+
+if test "${toolkit_path}" = ""; then
+    toolkit_path="${EX_DEV}/vim/toolkit"
+fi
+
+# ------------------------------------------------------------------ 
 # Desc: lang_type 
 # ------------------------------------------------------------------ 
 
-if test "${lang_type}" == ""; then
+if test "${lang_type}" = ""; then
     lang_type="auto"
 fi
 
@@ -49,7 +59,7 @@ fi
 # Desc: vimfiles_path 
 # ------------------------------------------------------------------ 
 
-if test "${vimfiles_path}" == ""; then
+if test "${vimfiles_path}" = ""; then
     vimfiles_path="_vimfiles"
 fi
 
@@ -57,7 +67,7 @@ fi
 # Desc: file_filter
 # ------------------------------------------------------------------ 
 
-if test "${file_filter}" == ""; then
+if test "${file_filter}" = ""; then
     file_filter="c\|cpp\|cxx\|c++\|C\|cc\|h\|H\|hh\|hxx\|hpp\|inl\|cs\|uc\|hlsl\|vsh\|psh\|fx\|fxh\|cg\|shd\|glsl\|py\|pyw\|vim\|awk\|m\|dox\|doxygen\|ini\|cfg\|wiki\|mk\|err\|exe\|bat\|sh"
 fi
 
@@ -65,7 +75,7 @@ fi
 # Desc: file_filter_pattern 
 # ------------------------------------------------------------------ 
 
-if test "${file_filter_pattern}" == ""; then
+if test "${file_filter_pattern}" = ""; then
     file_filter_pattern="\\.c$|\\.C$|\\.cpp$|\\.cxx$|\\.c++$|\\.cc$|\\.h$|\\.H$|\\.hh$|\\.hxx$|\\.hpp$|\\.inl$|\\.cs$|\\.uc$|\\.hlsl$|\\.vsh$|\\.psh$|\\.fx$|\\.fxh$|\\.cg$|\\.shd$|\\.glsl$|\\.py$|\\.pyw$|\\.vim$|\\.awk$|\\.m$|\\.dox$|\\.doxygen$|\\.ini$|\\.cfg$|\\.wiki$|\\.mk$|\\.err$|\\.exe$|\\.bat$|\\.sh$|\\.txt$"
 fi
 
@@ -73,7 +83,7 @@ fi
 # Desc: cscope_file_filter 
 # ------------------------------------------------------------------ 
 
-if test "${cscope_file_filter}" == ""; then
+if test "${cscope_file_filter}" = ""; then
     cscope_file_filter="c\|cpp\|cxx\|c++\|C\|cc\|h\|H\|hh\|hxx\|hpp\|inl\|hlsl\|vsh\|psh\|fx\|fxh\|cg\|shd\|glsl"
 fi
 
@@ -81,7 +91,7 @@ fi
 # Desc: cscope_file_filter_pattern 
 # ------------------------------------------------------------------ 
 
-if test "${cscope_file_filter_pattern}" == ""; then
+if test "${cscope_file_filter_pattern}" = ""; then
     cscope_file_filter_pattern="\\.c$|\\.C$\\.cpp$|\\.cxx$|\\.c++$|\\.cc$|\\.h$|\\.H$|\\.hh$|\\.hxx$|\\.hpp$|\\.inl$|\\.hlsl$|\\.vsh$|\\.psh$|\\.fx$|\\.fxh$|\\.cg$|\\.shd$|\\.glsl$"
 fi
 
@@ -89,7 +99,7 @@ fi
 # Desc: dir_filter 
 # ------------------------------------------------------------------ 
 
-if test "${dir_filter}" == ""; then
+if test "${dir_filter}" = ""; then
     dir_filter=""
 fi
 
@@ -97,7 +107,7 @@ fi
 # Desc: support_filenamelist 
 # ------------------------------------------------------------------ 
 
-if test "${support_filenamelist}" == ""; then
+if test "${support_filenamelist}" = ""; then
     support_filenamelist="true"
 fi
 
@@ -105,7 +115,7 @@ fi
 # Desc: support_ctags 
 # ------------------------------------------------------------------ 
 
-if test "${support_ctags}" == ""; then
+if test "${support_ctags}" = ""; then
     support_ctags="true"
 fi
 
@@ -113,7 +123,7 @@ fi
 # Desc: support_symbol 
 # ------------------------------------------------------------------ 
 
-if test "${support_symbol}" == ""; then
+if test "${support_symbol}" = ""; then
     support_symbol="true"
 fi
 
@@ -121,7 +131,7 @@ fi
 # Desc: support_inherit 
 # ------------------------------------------------------------------ 
 
-if test "${support_inherit}" == ""; then
+if test "${support_inherit}" = ""; then
     support_inherit="true"
 fi
 
@@ -129,7 +139,7 @@ fi
 # Desc: support_cscope 
 # ------------------------------------------------------------------ 
 
-if test "${support_cscope}" == ""; then
+if test "${support_cscope}" = ""; then
     support_cscope="true"
 fi
 
@@ -137,15 +147,23 @@ fi
 # Desc: support_idutils 
 # ------------------------------------------------------------------ 
 
-if test "${support_idutils}" == ""; then
+if test "${support_idutils}" = ""; then
     support_idutils="true"
+fi
+
+# ------------------------------------------------------------------ 
+# Desc: ctags_cmd 
+# ------------------------------------------------------------------ 
+
+if test "${ctags_cmd}" = ""; then
+    ctags_cmd="ctags"
 fi
 
 # ------------------------------------------------------------------ 
 # Desc: ctags_options 
 # ------------------------------------------------------------------ 
 
-if test "${ctags_options}" == ""; then
+if test "${ctags_options}" = ""; then
     ctags_options="--c++-kinds=+p --fields=+iaS --extra=+q --languages=c,c++,c#,python,vim,html,lua,javascript,java,uc,math --langmap=c++:+.inl,c:+.fx,c:+.fxh,c:+.hlsl,c:+.vsh,c:+.psh,c:+.cg,c:+.shd,javascript:+.as"
 fi
 
@@ -214,7 +232,7 @@ gen_filenamelist ()
 
         # create filenametags
         echo "  |- generate _filenametags"
-        gawk -f "${EX_DEV}/vim/toolkit/gawk/prg_FilenameTagLinux.awk" "./${vimfiles_path}/filenamelist_vimfiles">"./${vimfiles_path}/_filenametags"
+        gawk -f "${toolkit_path}/gawk/prg_FilenameTagLinux.awk" "./${vimfiles_path}/filenamelist_vimfiles">"./${vimfiles_path}/_filenametags"
         if [ -f "./${vimfiles_path}/_filenametags" ]; then
             echo "  |- rename _filenametags to filenametags"
             mv -f "./${vimfiles_path}/_filenametags" "./${vimfiles_path}/filenametags"
@@ -244,7 +262,7 @@ gen_tag ()
         # process tags by langugage
         cd ${vimfiles_path}
         echo "  |- generate _tags"
-        ctags -o./_tags ${ctags_options} ${ctags_path}
+        ${ctags_cmd} -o./_tags ${ctags_options} ${ctags_path}
 
         # force change _tags to tags
         if [ -f "_tags" ]; then
@@ -265,7 +283,7 @@ gen_symbols ()
     if test "$support_symbol" = "true"; then
         echo "Creating Symbols..."
         echo "  |- generate _symbol"
-        gawk -f "${EX_DEV}/vim/toolkit/gawk/prg_NoStripSymbol.awk" ./${vimfiles_path}/tags>./${vimfiles_path}/_symbol
+        gawk -f "${toolkit_path}/gawk/prg_NoStripSymbol.awk" ./${vimfiles_path}/tags>./${vimfiles_path}/_symbol
         if [ -f "./${vimfiles_path}/_symbol" ]; then
             echo "  |- rename _symbol to symbol"
             mv -f "./${vimfiles_path}/_symbol" "./${vimfiles_path}/symbol"
@@ -284,7 +302,7 @@ gen_inherits ()
     if test "$support_inherit" = "true"; then
         echo "Creating Inherits..."
         echo "  |- generate _inherits"
-        gawk -f "${EX_DEV}/vim/toolkit/gawk/prg_Inherits.awk" ./${vimfiles_path}/tags>./${vimfiles_path}/_inherits
+        gawk -f "${toolkit_path}/gawk/prg_Inherits.awk" ./${vimfiles_path}/tags>./${vimfiles_path}/_inherits
         if [ -f "./${vimfiles_path}/_inherits" ]; then
             echo "  |- rename _inherits to inherits"
             mv -f "./${vimfiles_path}/_inherits" "./${vimfiles_path}/inherits"
@@ -303,7 +321,7 @@ gen_cscope ()
         echo "Creating cscope data..."
         echo "  |- generate cscope.files"
         if [ -f "./${vimfiles_path}/filenamelist_cwd" ]; then
-            gawk -v filter_pattern=${cscope_file_filter_pattern} -f "${EX_DEV}/vim/toolkit/gawk/prg_FileFilterWithQuotes.awk" "./${vimfiles_path}/filenamelist_cwd" > cscope.files
+            gawk -v filter_pattern=${cscope_file_filter_pattern} -f "${toolkit_path}/gawk/prg_FileFilterWithQuotes.awk" "./${vimfiles_path}/filenamelist_cwd" > cscope.files
         else
             find . -regex '.*\.\('"${cscope_file_filter}"'\)' > cscope.files
         fi
@@ -342,7 +360,7 @@ gen_id ()
         # if both file not exists, we use default one in toolkit directory
     else
         echo "  |- generate ID by default language map"
-        mkid --include="text" --lang-map="${EX_DEV}/vim/toolkit/idutils/id-lang.map" ${dir_filter}
+        mkid --include="text" --lang-map="${toolkit_path}/idutils/id-lang.map" ${dir_filter}
     fi
 
     # mkid --include="C C++"
