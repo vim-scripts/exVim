@@ -30,6 +30,19 @@ fi
 # /////////////////////////////////////////////////////////////////////////////
 
 # ------------------------------------------------------------------ 
+# Desc: test and set regex type for find-utils
+# ------------------------------------------------------------------ 
+
+find . -maxdepth 1 -regextype posix-extended -regex 'test' > /dev/null 2>&1
+if test "$?" = "0"; then
+    force_posix_regex_1=""
+    force_posix_regex_2="-regextype posix-extended"
+else
+    force_posix_regex_1="-E"
+    force_posix_regex_2=""
+fi
+
+# ------------------------------------------------------------------ 
 # Desc: cwd 
 # ------------------------------------------------------------------ 
 
@@ -68,7 +81,7 @@ fi
 # ------------------------------------------------------------------ 
 
 if test "${file_filter}" = ""; then
-    file_filter="c\|cpp\|cxx\|c++\|C\|cc\|h\|H\|hh\|hxx\|hpp\|inl\|cs\|uc\|hlsl\|vsh\|psh\|fx\|fxh\|cg\|shd\|glsl\|py\|pyw\|vim\|awk\|m\|dox\|doxygen\|ini\|cfg\|wiki\|mk\|err\|exe\|bat\|sh"
+    file_filter="c|cpp|cxx|c\+\+|C|cc|h|H|hh|hxx|hpp|inl|cs|uc|hlsl|vsh|psh|fx|fxh|cg|shd|glsl|py|pyw|vim|awk|m|dox|doxygen|ini|cfg|wiki|mk|err|exe|bat|sh"
 fi
 
 # ------------------------------------------------------------------ 
@@ -84,7 +97,7 @@ fi
 # ------------------------------------------------------------------ 
 
 if test "${cscope_file_filter}" = ""; then
-    cscope_file_filter="c\|cpp\|cxx\|c++\|C\|cc\|h\|H\|hh\|hxx\|hpp\|inl\|hlsl\|vsh\|psh\|fx\|fxh\|cg\|shd\|glsl"
+    cscope_file_filter="c|cpp|cxx|c\+\+|C|cc|h|H|hh|hxx|hpp|inl|hlsl|vsh|psh|fx|fxh|cg|shd|glsl"
 fi
 
 # ------------------------------------------------------------------ 
@@ -211,10 +224,12 @@ gen_filenamelist ()
 
         # create filenamelist_cwd
         echo "  |- generate _filenamelist_cwd"
-        find ${dir_filter} -regex '.*\.\('"${file_filter}"'\)' >> "./${vimfiles_path}/_filenamelist_cwd"
-        # NOTE: if we have dir filter, we still need get files in root directory 
         if test "${dir_filter}" != ""; then
-            find . -maxdepth 1 -regex '.*\.\('"${file_filter}"'\)' >> "./${vimfiles_path}/_filenamelist_cwd"
+            # NOTE: if we have dir filter, we still need get files in root directory 
+            find ${force_posix_regex_1} . -maxdepth 1 ${force_posix_regex_2} -regex ".*\.('"${file_filter}"')" > "./${vimfiles_path}/_filenamelist_cwd"
+            find ${force_posix_regex_1} ${dir_filter} ${force_posix_regex_2} -regex ".*\.('"${file_filter}"')" >> "./${vimfiles_path}/_filenamelist_cwd"
+        else
+            find ${force_posix_regex_1} . ${force_posix_regex_2} -regex ".*\.('"${file_filter}"')" > "./${vimfiles_path}/_filenamelist_cwd"
         fi
 
         if [ -f "./${vimfiles_path}/_filenamelist_cwd" ]; then
@@ -323,16 +338,16 @@ gen_cscope ()
         if [ -f "./${vimfiles_path}/filenamelist_cwd" ]; then
             gawk -v filter_pattern=${cscope_file_filter_pattern} -f "${toolkit_path}/gawk/prg_FileFilterWithQuotes.awk" "./${vimfiles_path}/filenamelist_cwd" > cscope.files
         else
-            find . -regex '.*\.\('"${cscope_file_filter}"'\)' > cscope.files
+            find ${force_posix_regex_1} . ${force_posix_regex_2} -regex ".*\.('"${cscope_file_filter}"')" > cscope.files
         fi
 
         echo "  |- generate cscope.out"
         cscope -b
-        if [ -f "./${vimfiles_path}/cscope.files" ]; then
+        if [ -f "./cscope.files" ]; then
             echo "  |- move cscope.files to ./${vimfiles_path}/cscope.files"
             mv -f "cscope.files" "./${vimfiles_path}/cscope.files"
         fi
-        if [ -f "./${vimfiles_path}/cscope.out" ]; then
+        if [ -f "./cscope.out" ]; then
             echo "  |- move cscope.out to ./${vimfiles_path}/cscope.out"
             mv -f "cscope.out" "./${vimfiles_path}/cscope.out"
         fi

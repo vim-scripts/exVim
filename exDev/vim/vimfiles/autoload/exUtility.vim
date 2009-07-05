@@ -1518,13 +1518,13 @@ function exUtility#GetProjectFileFilterCommand() " <<<
         endfor
     elseif has ('unix')
         for item in filter_list 
-            let filter_command .= item . '\|'
+            let filter_command .= substitute(item, "\+", "\\\\+", "g") . '|'
         endfor
         for item in cscope_filter_list 
-            let cscope_filter_command .= item . '\|'
+            let cscope_filter_command .= substitute(item, "\+", "\\\\+", "g") . '|'
         endfor
-        let filter_command = strpart( filter_command, 0, len(filter_command) - 2)
-        let cscope_filter_command = strpart( cscope_filter_command, 0, len(cscope_filter_command) - 2)
+        let filter_command = strpart( filter_command, 0, len(filter_command) - 1)
+        let cscope_filter_command = strpart( cscope_filter_command, 0, len(cscope_filter_command) - 1)
     endif
 
     return [filter_command,cscope_filter_command]
@@ -2930,6 +2930,41 @@ function exUtility#ClearObjectHighlight() " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#Highlight_Temp() " <<<
+    if strpart( getline('.'), col('.')-1, 1 ) !~ '[a-zA-Z]'
+        return
+    endif
+
+    call exUtility#DefineMatchVariables() 
+
+    let hl_word = expand('<cword>')
+    let hl_pattern = '\<\C'.hl_word.'\>'
+    if hl_pattern !=# w:ex_HighLightTextTemp
+        let w:ex_hlMatchIDTemp = matchadd( 'ex_SynHLTemp', hl_pattern, 0 )
+        let w:ex_HighLightTextTemp = hl_pattern
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#Highlight_TempCursorMoved () " <<<
+    call exUtility#DefineMatchVariables() 
+    let hl_word = expand('<cword>')
+    let hl_pattern = '\<\C'.hl_word.'\>'
+    if w:ex_HighLightTextTemp != '' && ( hl_pattern !=# w:ex_HighLightTextTemp || strpart( getline('.'), col('.')-1, 1 ) !~ '[a-zA-Z]' )
+        silent call matchdelete(w:ex_hlMatchIDTemp)
+        let w:ex_hlMatchIDTemp = 0
+        let w:ex_HighLightTextTemp = ''
+    endif
+endfunction " >>>
+
+
+" ------------------------------------------------------------------ 
 " Desc: hightlight match_nr
 " NOTE: the 1,2,3,4 correspond to reg q,w,e,r
 " ------------------------------------------------------------------ 
@@ -3025,6 +3060,14 @@ function exUtility#DefineMatchVariables() " <<<
     endif
     if !exists('w:ex_HighLightText')
         let w:ex_HighLightText = ["","","","",""]
+    endif
+    if g:ex_auto_hl_cursor_word
+        if !exists('w:ex_hlMatchIDTemp')
+            let w:ex_hlMatchIDTemp = 0
+        endif
+        if !exists('w:ex_HighLightTextTemp')
+            let w:ex_HighLightTextTemp = ""
+        endif
     endif
 endfunction " >>>
 
