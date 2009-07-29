@@ -89,6 +89,7 @@ let s:ex_exvim_lang_map['uc'] = [ 'uc' ]
 let s:ex_exvim_lang_map['vim'] = [ 'vim' ]
 let s:ex_exvim_lang_map['wiki'] = [ 'wiki' ]
 let s:ex_exvim_lang_map['xml'] = [ 'xml' ]
+let s:ex_exvim_lang_map['qt'] = [ 'qrc', 'pro', 'pri' ]
 
 " ------------------------------------------------------------------ 
 " Desc: ctags language file maps 
@@ -945,7 +946,7 @@ function exUtility#InsertRemoveExtend() range " <<<
     if (strpart(line,strlen(line)-1,1) == "\\")
         exec ":" . a:firstline . "," . a:lastline . "s/\\\\$//"
     else
-        exec ":" . a:firstline . "," . a:lastline . "s/$/\\\\/"
+        exec ":" . a:firstline . "," . a:lastline . "s/$/ \\\\/"
     endif
 endfunction " >>>
 
@@ -3212,7 +3213,7 @@ function exUtility#GenInheritsDot( pattern, gen_method ) " <<<
     " write file
     call writefile(inherits_list, inherits_dot_file, "b")
     let image_file_name = inherit_directory_path . pattern_fname . ".png"
-    let dot_cmd = "!dot " . inherits_dot_file . " -Tpng -o" . image_file_name
+    let dot_cmd = "!dot " . '"'.inherits_dot_file.'"' . " -Tpng -o" . '"'.image_file_name.'"'
     silent exec dot_cmd
     if has("win32")
         return exUtility#Pathfmt( fnamemodify( image_file_name, ":p" ), 'windows' )
@@ -3487,7 +3488,7 @@ function exUtility#CreateVimwikiFiles() " <<<
                 " add title and charset
                 silent call add ( text_list, "<html>" )
                 silent call add ( text_list, "<head>" )
-                silent call add ( text_list, "\t<link rel=\"Stylesheet\" type=\"text/css\" href=\"style.css\" />" )
+                silent call add ( text_list, "\t<link rel=\"Stylesheet\" type=\"text/css\" href=\"%root_path%style.css\" />" )
                 silent call add ( text_list, "\t<title>%title%</title>" )
                 silent call add ( text_list, "\t<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />" )
 

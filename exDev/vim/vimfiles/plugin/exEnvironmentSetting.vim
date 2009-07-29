@@ -76,7 +76,7 @@ let s:exES_setted = 0
 " Desc: current version. increase this will cause template re-write 
 " ------------------------------------------------------------------ 
 
-let s:exES_CurrentVersion = 22
+let s:exES_CurrentVersion = 23
 
 "/////////////////////////////////////////////////////////////////////////////
 " function defines
@@ -155,8 +155,8 @@ function s:exES_WriteDefaultTemplate() " <<<
     silent call add(_list, '-- vimwiki Settings --')
     silent call add(_list, '')
 
-    silent call add(_list, 'wikiHome=./_doc/')
-    silent call add(_list, 'wikiHomeHtml=./wiki_html/')
+    silent call add(_list, 'wikiHome=./_doc')
+    silent call add(_list, 'wikiHomeHtml=./wiki_html')
     silent call add(_list, 'wikiHtmlHeader=./_doc/template/header.tpl')
 
     " put the settings into vimentry file
@@ -322,6 +322,10 @@ function g:exES_UpdateEnvironment() " <<<
     " set parent working directory
     if exists( 'g:exES_CWD' )
         silent exec 'cd ' . g:exES_CWD
+    endif
+
+    if exists('g:exES_VimEntryName')
+        au VimEnter,BufNewFile,BufEnter * let &titlestring = g:exES_VimEntryName . ' : %t %M%r (' . expand("%:p:h") . ')' . ' %h%w%y'
     endif
 
     " create _vimfiles directories
