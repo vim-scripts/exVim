@@ -33,15 +33,15 @@ let g:ex_usr_name = "Wu Jie"
 set nocompatible " Use Vim settings, rather then Vi settings (much better!). This must be first, because it changes other options as a side effect.
 set langmenu=none " always use English menu
 
-au FileType c,cpp set nomodeline " this will avoid bug in my project with namespace ex, the vim will tree ex:: as modeline.
+au FileType c,cpp,cs,swig set nomodeline " this will avoid bug in my project with namespace ex, the vim will tree ex:: as modeline.
 
 " source $VIMRUNTIME/vimrc_example.vim
 behave xterm  " set mouse behavior as xterm
 
 "set path=.,/usr/include/*,, " where gf, ^Wf, :find will search 
 set backup " make backup file and leave it around 
-"set backupdir=%tmp%
-"set directory=.,%tmp%
+"UNUSED: set backupdir=%tmp%
+"UNUSED: set directory=.,%tmp%
 
 " setup back and swap directory
 let data_dir = $HOME.'/.data/'
@@ -92,6 +92,7 @@ set autoread " auto read same-file change ( better for vc/vim change )
 " enlarge maxmempattern from 1000 to ... (2000000 will give it without limit)
 set maxmempattern=1000
 
+" DISABLE: done in exQuickFix { 
 " set quick fix error format
 " default errorformat = %f(%l) : %t%*\D%n: %m,%*[^"]"%f"%*\D%l: %m,%f(%l) : %m,%*[^ ] %f %l: %m,%f:%l:%c:%m,%f(%l):%m,%f:%l:%m,%f|%l| %m
 "set errorformat+=%D%\\d%\\+\>------\ %.%#Project:\ %f%\\,%.%# " msvc 2005 error-entering
@@ -99,6 +100,7 @@ set maxmempattern=1000
 "set errorformat+=%X%\\d%\\+\>%.%#%\\d%\\+\ error(s)%.%#%\\d%\\+\ warning(s) " msvc 2005 error-leaving
 "set errorformat+=%\\d%\\+\>%f(%l)\ :\ %t%*\\D%n:\ %m " msvc 2005 error-format
 "set errorformat+=%f(%l\\,%c):\ %m " fxc shader error-format
+" } DISABLE end 
 
 "/////////////////////////////////////////////////////////////////////////////
 " xterm settings
@@ -122,17 +124,34 @@ set nu " Show LineNumber
 set scrolloff=0 " minimal number of screen lines to keep above and below the cursor 
 set nowrap " I don't like wrap, cause in split window mode, it feel strange
 
-"set default guifont
+" set default guifont
 if has("gui_running")
+    " check and determine the gui font after GUIEnter. 
+    " NOTE: getfontname function only works after GUIEnter.  
+    au GUIEnter * call s:SetGuiFont() 
+endif
+" set guifont
+function s:SetGuiFont()
     if has("gui_gtk2")
         set guifont=Luxi\ Mono\ 10
     elseif has("x11")
         " Also for GTK 1
         set guifont=*-lucidatypewriter-medium-r-normal-*-*-180-*-*-m-*-*
     elseif has("gui_win32")
-        set guifont=Lucida_Console:h10
+        let font_name = ""
+        if getfontname( "Bitstream_Vera_Sans_Mono" ) != ""
+            set guifont=Bitstream_Vera_Sans_Mono:h10:cANSI
+            let font_name = "Bitstream_Vera_Sans_Mono" 
+        elseif getfontname( "Consolas" ) != ""
+            set guifont=Consolas:h11:cANSI " this is the default visual studio font
+            let font_name = "Consolas" 
+        else
+            set guifont=Lucida_Console:h10:cANSI
+            let font_name = "Lucida_Console" 
+        endif
+        silent exec "nnoremap <unique> <A-F1> :set guifont=".font_name.":h11:cANSI<CR>"
     endif
-endif
+endfunction
 
 " color scheme define
 if has("gui_running")
@@ -154,6 +173,8 @@ set hid " allow to change buffer without saving
 set shortmess=atI " shortens messages to avoid 'press a key' prompt 
 set lazyredraw " do not redraw while executing macros (much faster) 
 set display+=lastline " for easy browse last line with wrap text
+set laststatus=2 " always have status-line
+" TODO: set statusline=    " statusline with different color 'User1-9'
 
 " Set window's width to 130 columns and height to 40 rows
 " (if it's GUI)
@@ -283,19 +304,27 @@ nnoremap <unique> <F8> :let @/=""<CR>
 
 " fast encoding change. 
 if has("gui_running") "  the <alt> key is only available in gui mode.
+    " DISABLE: done in s:SetGuiFont() function { 
     " A-F1:  Switch to English Mode (Both Enconding and uiFont)
-    nnoremap <unique> <A-F1> :set guifont=Lucida_Console:h9<CR>:set encoding=latin1<CR>
+    " nnoremap <unique> <A-F1> :set guifont=Bitstream_Vera_Sans_Mono:h10:cANSI<CR>
+    " nnoremap <unique> <A-F1> :set guifont=Consolas:h11:cANSI<CR>
+    " } DISABLE end 
+
     " A-F2:  Switch to Chinese Mode (Both Enconding and uiFont)
-    nnoremap <unique> <A-F2> :set guifont=NSimSun:cGB2312:h9<CR>:set encoding=cp936<CR>
+    nnoremap <unique> <A-F2> :set guifont=NSimSun:h10:cGB2312<CR>
+
     " A-F3:  Switch to Japanese Mode 
-    nnoremap <unique> <A-F3> :set guifont=MS_Gothic:cSHIFTJIS:h9<CR>:set encoding=cp932<CR>
+    nnoremap <unique> <A-F3> :set guifont=MS_Gothic:h10:cSHIFTJIS<CR>
 else
     " <leader>F1:  Switch to English Mode (Both Enconding and uiFont)
-    nnoremap <unique> <leader><F1> :set guifont=Lucida_Console:h9<CR>:set encoding=latin1<CR>
+    " nnoremap <unique> <A-F1> :set guifont=Bitstream_Vera_Sans_Mono:h10:cANSI<CR>
+    nnoremap <unique> <A-F1> :set guifont=Consolas:h11:cANSI<CR>
+
     " <leader>F2:  Switch to Chinese Mode (Both Enconding and uiFont)
-    nnoremap <unique> <leader><F2> :set guifont=NSimSun:cGB2312:h9<CR>:set encoding=cp936<CR>
+    nnoremap <unique> <A-F2> :set guifont=NSimSun:h10:cGB2312<CR>
+
     " <leader>F3:  Switch to Japanese Mode 
-    nnoremap <unique> <leader><F3> :set guifont=MS_Gothic:cSHIFTJIS:h9<CR>:set encoding=cp932<CR>
+    nnoremap <unique> <A-F3> :set guifont=MS_Gothic:h10:cSHIFTJIS<CR>
 endif
 
 " map Ctrl-Tab to switch window
@@ -354,6 +383,7 @@ nnoremap <unique> <silent><leader>sw "_yiw:s/\(\%#\w\+\)\(\W\+\)\(\w\+\)/\3\2\1/
 "/////////////////////////////////////////////////////////////////////////////
 
 " perforce key mapping
+" TODO: should go to exSourceControl someday. { 
 " let g:proj_run1='!p4 edit %f'
 " nmap <Leader>po :silent !p4 edit %<CR>
 " nmap <Leader>pr :silent !p4 revert %<CR>
@@ -363,6 +393,7 @@ command Add silent exec '!p4 add ' . fnamemodify( bufname('%'), ':p' )
 command Delete silent exec '!p4 delete ' . fnamemodify( bufname('%'), ':p' )
 command Changelist :silent !p4 change
 command ShowChangelist :!p4 changes -s pending -u jwu
+" } TODO end 
 
 "/////////////////////////////////////////////////////////////////////////////
 " Auto Command
@@ -405,8 +436,8 @@ au BufNewFile,BufEnter * set cpoptions+=d " NOTE: ctags find the tags file from 
 au BufEnter * :syntax sync fromstart " ensure every file does syntax highlighting (full) 
 au BufNewFile,BufRead *.avs set syntax=avs " for avs syntax file.
 
-au FileType python call CheckIfExpandTab() " if edit python scripts, check if have \t. ( python said: the programme can only use \t or not, but can't use them together )
-function CheckIfExpandTab()
+au FileType python call s:CheckIfExpandTab() " if edit python scripts, check if have \t. ( python said: the programme can only use \t or not, but can't use them together )
+function s:CheckIfExpandTab()
     let has_noexpandtab = search('^\t','wn')
     let has_expandtab = search('^    ','wn')
 
@@ -457,7 +488,14 @@ endfunction
 
 if has("gui_running")
     if has("win32")
-        au GUIEnter * simalt ~x " Maximize window when enter vim
+        " au GUIEnter * simalt ~x " Maximize window when enter vim
+        " set a fixed size of vim
+        if exists("+lines")
+            set lines=55
+        endif
+        if exists("+columns")
+            set columns=125
+        endif
     elseif has("unix")
         " TODO: no way right now
     endif
@@ -467,8 +505,9 @@ endif
 " Desc: file types 
 " ------------------------------------------------------------------ 
 
-" Disable auto-comment for c/cpp and vim-script
+" Disable auto-comment for c/cpp, c# and vim-script
 au FileType c,cpp set comments=sO:*\ -,mO:*\ \ ,exO:*/,s1:/*,mb:*,ex:*/,f:// 
+au FileType cs set comments=sO:*\ -,mO:*\ \ ,exO:*/,s1:/*,mb:*,ex:*/,f:///,f:// 
 au FileType vim set comments=sO:\"\ -,mO:\"\ \ ,eO:\"\",f:\"
 
 "/////////////////////////////////////////////////////////////////////////////
@@ -478,6 +517,10 @@ au FileType vim set comments=sO:\"\ -,mO:\"\ \ ,eO:\"\",f:\"
 " ------------------------------------------------------------------ 
 " Desc: exUtility
 " ------------------------------------------------------------------ 
+
+" quick substitue h1 -> h2
+nnoremap <unique> <silent><leader>sub :%s/<c-r>q/<c-r>w/g<CR><c-o>
+vnoremap <unique> <silent><leader>sub  :s/<c-r>q/<c-r>w/g<CR><c-o>
 
 " edit current vimentry
 nnoremap <unique> <leader>ve :call exUtility#EditVimEntry ()<CR>
@@ -595,10 +638,10 @@ endif
 nnoremap <unique> <silent> <Leader>gv :call exUtility#ViewInheritsImage()<CR>
 
 " mark (special) text
-let g:ex_todo_keyword = 'NOTE REF EXAMPLE SAMPLE CHECK'
-let g:ex_comment_lable_keyword = 'DELME TEMP MODIFY ADD KEEPME DISABLE ' " for editing
-let g:ex_comment_lable_keyword .= 'DEBUG CRASH DUMMY UNUSED TESTME ' " for testing 
-let g:ex_comment_lable_keyword .= 'HACK OPTME HARDCODE REFACTORING DUPLICATE REDUNDANCY ' " for refactoring
+let g:ex_todo_keyword = 'NOTE REF EXAMPLE SAMPLE CHECK TIPS HINT'
+let g:ex_comment_lable_keyword = 'DELME TEMP MODIFY ADD KEEPME DISABLE TEST ' " for editing
+let g:ex_comment_lable_keyword .= 'ERROR DEBUG CRASH DUMMY UNUSED TESTME ' " for testing 
+let g:ex_comment_lable_keyword .= 'FIXME BUG HACK OPTME HARDCODE REFACTORING DUPLICATE REDUNDANCY PATCH ' " for refactoring
 
 vnoremap <unique> <Leader>mk :MK 
 nnoremap <unique> <Leader>mk :call exUtility#RemoveSpecialMarkText() <CR>
@@ -610,7 +653,10 @@ let g:ex_plugin_registered_bufnames = ["-MiniBufExplorer-","__Tag_List__","\[Loo
 let g:ex_plugin_registered_filetypes = ["ex_plugin","ex_project","taglist","nerdtree"] 
 
 " default languages
-let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'matlab', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug', 'qt' ] 
+let g:ex_default_langs = ['c', 'cpp', 'c#', 'java', 'shader', 'python', 'vim', 'uc', 'matlab', 'wiki', 'ini', 'make', 'sh', 'batch', 'debug', 'qt', 'swig' ] 
+
+" DISABLE: auto highlight cursor word
+" let g:ex_auto_hl_cursor_word = 1
 
 " set exvim language map
 call exUtility#AddLangMap ( 'exvim', 'javascript', ['as'] )
@@ -694,7 +740,6 @@ endfunction
 
 nnoremap <unique> <silent> <Leader>ts :ExtsSelectToggle<CR>
 nnoremap <unique> <silent> <Leader>tg :ExtsGoDirectly<CR>
-
 nnoremap <unique> <silent> <Leader>] :ExtsGoDirectly<CR>
 
 let g:exTS_backto_editbuf = 0
@@ -726,7 +771,7 @@ nnoremap <unique> <silent> <Leader>ss :ExslSelectToggle<CR>
 nnoremap <unique> <silent> <Leader>sq :ExslQuickViewToggle<CR>
 nnoremap <unique> <silent> <Leader>sg :ExslGoDirectly<CR>
 " NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
-nmap <unique> <A-S-l> :ExslQuickSearch<CR>/
+nmap <unique> <M-L> :ExslQuickSearch<CR>/
 
 let g:exSL_SymbolSelectCmd = 'TS'
 
@@ -784,8 +829,9 @@ nnoremap <unique> <silent> <Leader>ad :ExmhHL 0 <CR>
 " ------------------------------------------------------------------ 
 
 " NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
-nmap <unique> <A-S-o> :EXProject<CR>:redraw<CR>/
-nnoremap <unique> <silent> <A-S-p> :EXProject<CR>
+" NOTE: M-O equal to A-S-o, the S-o equal to O
+nmap <unique> <M-O> :EXProject<CR>:redraw<CR>/
+nnoremap <unique> <silent> <M-P> :EXProject<CR>
 nnoremap <unique> <leader>ff :EXProject<CR>:redraw<CR>/\[\l*\]\zs.*
 nnoremap <unique> <leader>fd :EXProject<CR>:redraw<CR>/\[\u\]\zs.*
 nnoremap <unique> <leader>fc :ExpjGotoCurrentFile<CR>
@@ -800,7 +846,7 @@ let g:exPJ_window_width_increment = 50
 " ------------------------------------------------------------------ 
 
 " NOTE: the / can be mapped to other script ( for example exSearchComplete ), so here use nmap instead of nnoremap 
-nmap <unique> <A-S-b> :EXBufExplorer<CR>:redraw<CR>/
+nmap <unique> <M-B> :EXBufExplorer<CR>:redraw<CR>/
 nnoremap <unique> <silent> <leader>bs :EXBufExplorer<CR>
 nnoremap <unique> <leader>bk :EXAddBookmarkDirectly<CR>
 
@@ -1010,14 +1056,14 @@ imap <unique> <C-F11> <ESC><Plug>DeComment
 " ======================================================== 
 
 function EnhCommentifyCallback(ft)
-    " add hlsl
-    if a:ft == 'hlsl'
+    " for hlsl, swig, c
+    if a:ft =~ '^\(hlsl\|swig\|c\)$' " NOTE: we have to rewrite the c comment behavior. 
         let b:ECcommentOpen = '//'
         let b:ECcommentClose = ''
-    elseif a:ft == 'snippet'
+    elseif a:ft == 'snippet' " for snippet
         let b:ECcommentOpen = '#'
         let b:ECcommentClose = ''
-    elseif a:ft == 'maxscript'
+    elseif a:ft == 'maxscript' " for maxscript
         let b:ECcommentOpen = '--'
         let b:ECcommentClose = ''
     endif
@@ -1043,7 +1089,7 @@ let showmarks_hlline_upper = 0
 " Desc: LookupFile 
 " ------------------------------------------------------------------ 
 
-nnoremap <unique> <A-S-i> :LUTags<CR>
+nnoremap <unique> <M-I> :LUTags<CR>
 nnoremap <unique> <leader>lf :LUTags<CR>
 nnoremap <unique> <leader>lb :LUBufs<CR>
 nnoremap <unique> <silent> <Leader>ll :LUCurWord<CR>
@@ -1067,6 +1113,7 @@ map <silent><unique> <Leader>ww <Plug>VimwikiGoHome
 " vimwiki file process
 au FileType vimwiki command! W call exUtility#SaveAndConvertVimwiki(0)
 au FileType vimwiki command! WA call exUtility#SaveAndConvertVimwiki(1)
+au FileType rst command! W call exUtility#SphinxMake('html')
 
 let g:vimwiki_camel_case = 0
 let g:vimwiki_hl_headers = 1
@@ -1083,6 +1130,29 @@ let g:snippets_dir = g:ex_toolkit_path . '/snippets/'
 " ------------------------------------------------------------------ 
 
 let g:NERDTreeWinSize = exists('g:exPJ_window_width') ? g:exPJ_window_width : 30 
+
+" ------------------------------------------------------------------ 
+" Desc: zencoding 
+" ------------------------------------------------------------------ 
+
+let g:user_zen_leader_key = '<c-j>'
+
+" ------------------------------------------------------------------ 
+" Desc: surround 
+" 'sb' for block
+" 'si' for an if statement
+" 'sw' for a with statement
+" 'sc' for a comment
+" 'sf' for a for statement
+" ------------------------------------------------------------------ 
+
+" DISABLE { 
+" let g:surround_{char2nr("b")} = "{% block\1 \r..*\r &\1%}\r{% endblock %}"
+" let g:surround_{char2nr("i")} = "{% if\1 \r..*\r &\1%}\r{% endif %}"
+" let g:surround_{char2nr("w")} = "{% with\1 \r..*\r &\1%}\r{% endwith %}"
+" let g:surround_{char2nr("c")} = "{% comment\1 \r..*\r &\1%}\r{% endcomment %}"
+" let g:surround_{char2nr("f")} = "{% for\1 \r..*\r &\1%}\r{% endfor %}"
+" } DISABLE end 
 
 "/////////////////////////////////////////////////////////////////////////////
 " Other settings

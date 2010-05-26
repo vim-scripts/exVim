@@ -1,7 +1,7 @@
 #  ======================================================================================
-#  File         : gcc_rule.mk
+#  File         : gcc_rule_s.mk
 #  Author       : Wu Jie 
-#  Last Change  : 10/19/2008 | 11:27:09 AM | Sunday,October
+#  Last Change  : 12/06/2009 | 14:16:29 PM | Sunday,December
 #  Description  : 
 #  ======================================================================================
 
@@ -13,7 +13,7 @@
 #  Desc: Out Directory
 #  ------------------------------------------------------------------ 
 
-OutDir := $(CWD)/_build/gcc/$(Platform)
+OutDir ?= $(CWD)/_build/gcc/$(Platform)/$(Configuration)
 
 #  ------------------------------------------------------------------ 
 #  Desc: Include
@@ -54,7 +54,7 @@ FullPath_Srcs := $(wildcard $(addsuffix /*.c,$(SrcDirs))) $(wildcard $(addsuffix
 #  Object File Output Path
 #  ======================================================== 
 
-ObjDir := $(OutDir)/$(Configuration)/objs/$(Project)
+ObjDir := $(OutDir)/objs/$(Project)
 
 #  ======================================================== 
 #  Object File Output Names
@@ -76,7 +76,7 @@ FullPath_Objs := $(addprefix $(ObjDir)/,$(Objs))
 #  Dependence File Output Path
 #  ======================================================== 
 
-DepDir := $(OutDir)/$(Configuration)/deps/$(Project)
+DepDir := $(OutDir)/deps/$(Project)
 
 #  ======================================================== 
 #  Dependence File Output Names
@@ -107,7 +107,7 @@ Libs := $(PrjLibs) $(ExtLibs)
 #  Project Compile Dependence Libraries Output Path
 #  ======================================================== 
 
-PrjLibDir := $(OutDir)/$(Configuration)/bin
+PrjLibDir := $(OutDir)/bin
 
 #  ======================================================== 
 #  Project compile dependence libraries with Full Path
@@ -125,15 +125,15 @@ LibDirs += $(PrjLibDir)
 #  ======================================================== 
 
 ifeq ($(ProjectType),exe)
-TargetDir := $(OutDir)/$(Configuration)/bin
+TargetDir := $(OutDir)/bin
 Target := $(Project)_$(Configuration).$(EXE_NAME)
 else
 ifeq ($(ProjectType),lib)
-TargetDir := $(OutDir)/$(Configuration)/bin
+TargetDir := $(OutDir)/bin
 Target := lib$(Project).$(LIB_NAME)
 else
 ifeq ($(ProjectType),dll)
-TargetDir := $(OutDir)/$(Configuration)/bin
+TargetDir := $(OutDir)/bin
 Target := $(Project).$(DLL_NAME)
 libTarget := lib$(Project).a
 endif
@@ -149,7 +149,7 @@ FullPath_Target := $(TargetDir)/$(Target)
 #  Error File Output Path
 #  ======================================================== 
 
-ErrDir := $(OutDir)/$(Configuration)/logs/errors
+ErrDir ?= $(OutDir)/logs/errors
 FullPath_Errs := $(ErrDir)/$(Project).err
 ErrLogName := ErrorLog.err
 

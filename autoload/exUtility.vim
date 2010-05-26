@@ -90,6 +90,7 @@ let s:ex_exvim_lang_map['vim'] = [ 'vim' ]
 let s:ex_exvim_lang_map['wiki'] = [ 'wiki' ]
 let s:ex_exvim_lang_map['xml'] = [ 'xml' ]
 let s:ex_exvim_lang_map['qt'] = [ 'qrc', 'pro', 'pri' ]
+let s:ex_exvim_lang_map['swig'] = [ 'i', 'swg' ]
 
 " ------------------------------------------------------------------ 
 " Desc: ctags language file maps 
@@ -1814,7 +1815,7 @@ function exUtility#Browse(dir, file_filter, dir_filter, filename_list ) " <<<
     " if directory
     if isdirectory(a:dir) == 1
         " split the first level to file_list
-        let file_list = split(globpath(a:dir,'*'),'\n')
+        let file_list = split(globpath(a:dir,'*'),'\n') " NOTE, globpath('.','.*') will show hidden folder
         silent call sort( file_list, "exUtility#FileNameSort" )
 
         " sort and filter the list as we want (file|dir )
@@ -1838,11 +1839,13 @@ function exUtility#Browse(dir, file_filter, dir_filter, filename_list ) " <<<
                     silent call remove(file_list,list_idx)
                     let list_idx -= 1
                 endif
-            elseif len (s:ex_level_list) == 0 " in first level directory, if we _vimfiles* folders, remove them
-                if match( file_list[list_idx], '\<_vimfiles.*' ) != -1
-                    silent call remove(file_list,list_idx)
-                    let list_idx -= 1
-                endif
+            " DISABLE: in our case, globpath never search hidden folder. { 
+            " elseif len (s:ex_level_list) == 0 " in first level directory, if we .vimfiles* folders, remove them
+            "     if match( file_list[list_idx], '\<.vimfiles.*' ) != -1
+            "         silent call remove(file_list,list_idx)
+            "         let list_idx -= 1
+            "     endif
+            " } DISABLE end 
             endif
 
             "
@@ -2282,6 +2285,31 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
+function exUtility#SphinxMake(args) " <<<
+    " save all file for compile first
+    silent exec "wa!"
+    let make_file = glob('make.bat')
+    if has ("unix")
+        let make_file = glob('Makefile')
+    endif
+    if make_file == ''
+        call exUtility#WarningMsg("make.bat not found")
+        return
+    endif
+
+    let error_file = '.build/error.err'
+    if has ("win32")
+        call exUtility#Terminal ( 'silent', 'wait', 'make ' . a:args . ' 2>' . error_file )
+        silent exec 'QF '. error_file
+    elseif has("unix")
+        exec "!make -f" . make_file . ' ' . a:args
+    endif
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
 function exUtility#Debug( exe_name ) " <<<
     if glob(a:exe_name) == ''
         call exUtility#WarningMsg('file: ' . a:exe_name . ' not found')
@@ -2415,7 +2443,7 @@ function exUtility#GetUpdateVimentryRefsCommand( type ) " <<<
             " get process files
             for vimentry in g:exES_vimentryRefs
                 let ref_entry_dir = fnamemodify( vimentry, ':p:h')
-                let ref_vimfiles_dirname = '_vimfiles_' . fnamemodify( vimentry, ":t:r" )
+                let ref_vimfiles_dirname = '.vimfiles.' . fnamemodify( vimentry, ":t:r" )
                 let symbolFiles .= '+' . '"' . exUtility#Pathfmt(exUtility#GetVimFile ( ref_entry_dir, ref_vimfiles_dirname, 'symbol'),'windows') . '"'
                 let inheritFiles .= '+' . '"' . exUtility#Pathfmt(exUtility#GetVimFile ( ref_entry_dir, ref_vimfiles_dirname, 'inherits'),'windows') . '"'
             endfor
@@ -2453,7 +2481,7 @@ function exUtility#GetUpdateVimentryRefsCommand( type ) " <<<
             " get process files
             for vimentry in g:exES_vimentryRefs
                 let ref_entry_dir = fnamemodify( vimentry, ':p:h')
-                let ref_vimfiles_dirname = '_vimfiles_' . fnamemodify( vimentry, ":t:r" )
+                let ref_vimfiles_dirname = '.vimfiles.' . fnamemodify( vimentry, ":t:r" )
                 let symbolFiles .= ' ' . '"' . exUtility#Pathfmt(exUtility#GetVimFile ( ref_entry_dir, ref_vimfiles_dirname, 'symbol'),'unix') . '"'
                 let inheritFiles .= ' ' . '"' . exUtility#Pathfmt(exUtility#GetVimFile ( ref_entry_dir, ref_vimfiles_dirname, 'inherits'),'unix') . '"'
             endfor
@@ -2753,7 +2781,7 @@ function exUtility#CreateIDLangMap( file_filter ) " <<<
         silent call add ( text_list, '# autogen id-lang.map')
         silent call add ( text_list, '# NOTE: this file is created automatically after you create/refresh exProject.')
         silent call add ( text_list, '# CAUTION: you may loose your modification in this file, if you want customize your language map,')
-        silent call add ( text_list, '#          please create your own language map file under ./_vimfiles*, and change the file name as id-lang.map')
+        silent call add ( text_list, '#          please create your own language map file under ./.vimfiles*, and change the file name as id-lang.map')
         silent call add ( text_list, '*~                    IGNORE')
         silent call add ( text_list, '*.bak                 IGNORE')
         silent call add ( text_list, '*.bk[0-9]             IGNORE')
@@ -2761,7 +2789,7 @@ function exUtility#CreateIDLangMap( file_filter ) " <<<
         silent call add ( text_list, '*/.deps/*             IGNORE')
         silent call add ( text_list, '*/.svn/*              IGNORE')
         silent call add ( text_list, '*.svn-base            IGNORE')
-        silent call add ( text_list, '_vimfiles*/*          IGNORE')
+        silent call add ( text_list, '.vimfiles*/*          IGNORE')
         silent call add ( text_list, 'quick_gen_project_*.* IGNORE')
         silent call add ( text_list, '*.err                 IGNORE') " never bring error file into global search
         silent call add ( text_list, '*.exe                 IGNORE') " never bring exe file into global search
@@ -3104,13 +3132,13 @@ function exUtility#SrcHighlight( line1, line2 ) " <<<
 
     " process src-highlight
     if exists("g:exES_CWD")
-        let temp_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/_temp' 
+        let temp_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/.temp' 
         let temp_file = temp_directory_path.'/'.'_src_highlight.txt' 
         let temp_file_html = temp_file . '.html' 
     else
-        let temp_directory_path = './_temp' 
+        let temp_directory_path = './.temp' 
 
-        " create _temp directory if not found
+        " create .temp directory if not found
         if finddir(temp_directory_path) == ''
             silent call mkdir(temp_directory_path)
         endif
@@ -3169,7 +3197,7 @@ function exUtility#GenInheritsDot( pattern, gen_method ) " <<<
     echomsg "generating inherits: " . a:pattern
 
     " create inherit dot file path
-    let inherit_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/_hierarchies/' 
+    let inherit_directory_path = g:exES_CWD.'/'.g:exES_vimfiles_dirname.'/.hierarchies/' 
     if finddir(inherit_directory_path) == ''
         silent call mkdir(inherit_directory_path)
     endif
@@ -3507,36 +3535,36 @@ function exUtility#CreateVimwikiFiles() " <<<
                 silent call add ( text_list, "<head>" )
                 silent call add ( text_list, "\t<link rel=\"Stylesheet\" type=\"text/css\" href=\"%root_path%style.css\" />" )
                 silent call add ( text_list, "\t<title>%title%</title>" )
-                silent call add ( text_list, "\t<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />" )
+                silent call add ( text_list, "\t<meta http-equiv=\"Content-Type\" content=\"text/html; charset=".&encoding."\" />" )
 
                 " add syntax highlighter js
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shCore.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushAS3.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushBash.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushColdFusion.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushCpp.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushCSharp.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushCss.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushDelphi.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushDiff.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushErlang.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushGroovy.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushJava.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushJavaFX.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushJScript.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushPhp.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushPlain.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushPowerShell.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushPython.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushRuby.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushScala.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushSql.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushVb.js\"></script>" )
-	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"syntax_highlighter/scripts/shBrushXml.js\"></script>" )
-	            silent call add ( text_list, "\t<link type=\"text/css\" rel=\"stylesheet\" href=\"syntax_highlighter/styles/shCore.css\"/>" )
-	            silent call add ( text_list, "\t<link type=\"text/css\" rel=\"stylesheet\" href=\"syntax_highlighter/styles/shThemeEX.css\"/>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shCore.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushAS3.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushBash.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushColdFusion.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushCpp.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushCSharp.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushCss.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushDelphi.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushDiff.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushErlang.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushGroovy.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushJava.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushJavaFX.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushJScript.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushPhp.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushPlain.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushPowerShell.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushPython.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushRuby.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushScala.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushSql.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushVb.js\"></script>" )
+	            silent call add ( text_list, "\t<script type=\"text/javascript\" src=\"%root_path%/syntax_highlighter/scripts/shBrushXml.js\"></script>" )
+	            silent call add ( text_list, "\t<link type=\"text/css\" rel=\"stylesheet\" href=\"%root_path%/syntax_highlighter/styles/shCore.css\"/>" )
+	            silent call add ( text_list, "\t<link type=\"text/css\" rel=\"stylesheet\" href=\"%root_path%/syntax_highlighter/styles/shThemeEX.css\"/>" )
 	            silent call add ( text_list, "\t<script type=\"text/javascript\">" )
-	            silent call add ( text_list, "\t\tSyntaxHighlighter.config.clipboardSwf = \"syntax_highlighter/scripts/clipboard.swf\";" )
+	            silent call add ( text_list, "\t\tSyntaxHighlighter.config.clipboardSwf = \"%root_path%/syntax_highlighter/scripts/clipboard.swf\";" )
 	            silent call add ( text_list, "\t\tSyntaxHighlighter.all();" )
 	            silent call add ( text_list, "\t</script>" )
 
