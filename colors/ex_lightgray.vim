@@ -2,7 +2,7 @@
 " File         : ex_lightgray.vim
 " Author       : Wu Jie 
 " Last Change  : 05/30/2009 | 19:28:39 PM | Saturday,May
-" Description  : exDev gray color scheme 
+" Description  : exdev gray color scheme 
 " ======================================================================================
 
 " /////////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,7 @@ let colors_name = "ex_lightgray"
 "  Color Define 
 " /////////////////////////////////////////////////////////////////////////////
 
-hi Normal       font=Lucida_Console:h9:cANSI guibg=LightGray
+hi Normal       guibg=LightGray
 
 hi SpecialKey   term=bold ctermfg=1 guifg=Blue
 hi NonText      term=bold ctermfg=9 gui=bold guifg=Blue

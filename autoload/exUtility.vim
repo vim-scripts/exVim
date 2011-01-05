@@ -284,9 +284,6 @@ function exUtility#InitWindow(init_func_name) " <<<
     silent! setlocal winfixheight
     silent! setlocal winfixwidth
 
-    " Define hightlighting
-    syntax match ex_SynError '^Error:.*'
-
     " Define the ex autocommands
     augroup ex_auto_cmds
         autocmd WinLeave * call exUtility#RecordCurrentBufNum()
@@ -295,13 +292,18 @@ function exUtility#InitWindow(init_func_name) " <<<
 
     " avoid cwd change problem
     if exists( 'g:exES_CWD' )
-        au BufEnter * silent exec 'lcd ' . g:exES_CWD
+        au BufEnter * silent exec 'lcd ' . escape(g:exES_CWD, " ")
     endif
 
+    " call the user define init_function
     if a:init_func_name != 'none'
         exe 'call ' . a:init_func_name . '()'
     endif
 
+    " Define syntax highlight
+    " NOTE: define the syntax highlight after user init. this can prevent user
+    "       override the basic syntax.
+    syntax match ex_SynError '^Error:.*'
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -510,7 +512,7 @@ endfunction " >>>
 " ------------------------------------------------------------------ 
 
 function exUtility#CloseAllExpluginWindow() " <<<
-    " walk through all window in exVim
+    " walk through all window in exvim
     let i = 1
     let bufnum_list = []
     while i <= winnr("$")
@@ -622,6 +624,47 @@ function exUtility#PutNamespace( space_name, line1, line2 ) " <<<
     " then go back to first line and put namespace start
     silent call cursor( first_line - 1, 1 )
     call exUtility#PutNamespaceStart(a:space_name)
+endfunction " >>>
+
+" ------------------------------------------------------------------ 
+" Desc: 
+" ------------------------------------------------------------------ 
+
+function exUtility#PutExternC( line1, line2 ) " <<<
+    " 
+    let first_line = a:line1
+    let last_line = a:line2
+
+    " put namespace end first
+    silent call cursor( last_line, 1 )
+    silent put = ''
+    silent call append  ( '.', b:ECcommentOpen . " ######################### " . b:ECcommentClose )
+    silent normal! j
+    silent call append  ( '.', "#ifdef __cplusplus" )
+    silent normal! j
+    silent call append  ( '.', "} // end extern C " )
+    silent normal! j
+    silent call append  ( '.', "#endif" )
+    silent normal! j
+    silent call append  ( '.', b:ECcommentOpen . " ######################### " . b:ECcommentClose )
+    silent normal! j
+    silent call append  ( '.', "" )
+    silent normal! j
+
+    " then go back to first line and put namespace start
+    silent call cursor( first_line - 1, 1 )
+    silent call append  ( '.', b:ECcommentOpen . " ######################### " . b:ECcommentClose )
+    silent normal! j
+    silent call append  ( '.', "#ifdef __cplusplus" )
+    silent normal! j
+    silent call append  ( '.', 'extern "C" { ' )
+    silent normal! j
+    silent call append  ( '.', "#endif" )
+    silent normal! j
+    silent call append  ( '.', b:ECcommentOpen . " ######################### " . b:ECcommentClose )
+    silent normal! j
+    silent call append  ( '.', "" )
+    silent normal! j
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
@@ -2302,7 +2345,8 @@ function exUtility#SphinxMake(args) " <<<
         call exUtility#Terminal ( 'silent', 'wait', 'make ' . a:args . ' 2>' . error_file )
         silent exec 'QF '. error_file
     elseif has("unix")
-        exec "!make -f" . make_file . ' ' . a:args
+        exec "!make -f" . make_file . ' ' . a:args . ' 2>' . error_file
+        silent exec 'QF '. error_file
     endif
 endfunction " >>>
 
@@ -2472,8 +2516,8 @@ function exUtility#GetUpdateVimentryRefsCommand( type ) " <<<
             let cmd .= ' && echo'
             let cmd .= ' && echo Update vimentry references...'
 
-            let destSymbol = '"' . exUtility#Pathfmt(exUtility#GetVimFile ( g:exES_CWD, 'symbol'),'unix') . '"'
-            let destInherit = '"' . exUtility#Pathfmt(exUtility#GetVimFile ( g:exES_CWD, 'inherits'),'unix') . '"'
+            let destSymbol = '"' . exUtility#Pathfmt(exUtility#GetVimFile ( g:exES_CWD, g:exES_vimfiles_dirname, 'symbol'),'unix') . '"'
+            let destInherit = '"' . exUtility#Pathfmt(exUtility#GetVimFile ( g:exES_CWD, g:exES_vimfiles_dirname, 'inherits'),'unix') . '"'
 
             let symbolFiles = destSymbol
             let inheritFiles = destInherit
@@ -3381,7 +3425,7 @@ endfunction " >>>
 " Desc: 
 " ------------------------------------------------------------------ 
 
-function exUtility#GetFileName( text )
+function exUtility#GetFileName( text ) " <<<
     let line = ''
     " if it is a file
     if match(a:text,'[^^]-\C\[[^F]\]') != -1
@@ -3396,7 +3440,7 @@ function exUtility#GetFileName( text )
         endif
     endif
     return line
-endfunction
+endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: 
@@ -3418,9 +3462,9 @@ endfunction " >>>
 
 " ------------------------------------------------------------------ 
 " Desc: 
+" TODO: can combine args with file,directory search
 " ------------------------------------------------------------------ 
 
-" TODO: can combine args with file,directory search
 function exUtility#CompleteGMakeArgs( arg_lead, cmd_line, cursor_pos ) " <<<
     let idx = strridx(a:arg_lead,'/')+1
     let arg_lead_prefix = strpart(a:arg_lead, 0, idx )
@@ -3678,11 +3722,9 @@ endfunction " >>>
 "/////////////////////////////////////////////////////////////////////////////
 
 " ------------------------------------------------------------------ 
-" Desc: 
+" Desc: Add help Item for current buffer, used in initilization only
 " ------------------------------------------------------------------ 
 
-" --ex_AddHelpItem--
-" Add help Item for current buffer, used in initilization only
 function exUtility#AddHelpItem(HelpText, HelpMode) " <<<
     let BufName = fnamemodify(bufname(""), ':t')
     if !has_key(s:ex_MapHelpText, BufName)
@@ -3698,11 +3740,9 @@ function exUtility#AddHelpItem(HelpText, HelpMode) " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
-" Desc: 
+" Desc: Add help Item for current buffer, used in initilization only
 " ------------------------------------------------------------------ 
 
-" --ex_AddHelpItem--
-" Add help Item for current buffer, used in initilization only
 function exUtility#DisplayHelp() " <<<
     " If it's not funtional window, do not display help
 
@@ -3765,11 +3805,9 @@ function exUtility#DisplayHelp() " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
-" Desc: 
+" Desc: Switch between different help text , -1 for toggle between 1 and 0
 " ------------------------------------------------------------------ 
 
-" --ex_SwitchHelpTextMode--
-" Switch between different help text , -1 for toggle between 1 and 0
 function exUtility#SwitchHelpTextMode(HelpMode) " <<<
     " call exUtility#ClearHighlightSelectLine()
     2match none " the function is gone, use the match directly
@@ -3796,11 +3834,9 @@ function exUtility#SwitchHelpTextMode(HelpMode) " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
-" Desc: 
+" Desc: if Cursor is on the Help, jump to the first line without help
 " ------------------------------------------------------------------ 
 
-" --ex_HelpUpdateCursor--
-" if Cursor is on the Help, jump to the first line without help
 function exUtility#HelpUpdateCursor() " <<<
     " return immidiaetly if help off
     if !g:ex_help_text_on
@@ -3814,11 +3850,9 @@ function exUtility#HelpUpdateCursor() " <<<
 endfunction " >>>
 
 " ------------------------------------------------------------------ 
-" Desc: 
+" Desc: return the length of HelpText
 " ------------------------------------------------------------------ 
 
-" --ex_GetHelpTextLength--
-" return the length of HelpText
 function exUtility#GetHelpTextLength() " <<<
     let linenum = 1
     while getline(linenum)[0] == '"'

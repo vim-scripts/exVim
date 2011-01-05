@@ -92,12 +92,17 @@ endif
 
 if $EX_DEV ==# ""
     if has ("unix")
-        call confirm ("exVim error: Please set the EX_DEV in .vimrc, default is let $EX_DEV='~/exDev'")
-        let $EX_DEV='~/exDev'
+        call confirm ("exvim error: Please set the EX_DEV in .vimrc, default is let $EX_DEV='~/exdev'")
+        let $EX_DEV='~/exdev'
     elseif has("win32")
-        call confirm ("exVim error: Please set the EX_DEV in .vimrc, default is let $EX_DEV='d:\exDev'")
-        let $EX_DEV='d:\exDev'
+        call confirm ("exvim error: Please set the EX_DEV in .vimrc, default is let $EX_DEV='d:\exdev'")
+        let $EX_DEV='d:\exdev'
     endif
+endif
+
+" check if the EX_DEV path exists
+if finddir($EX_DEV) == ''
+    call exUtility#WarningMsg("the path define in environment variable $EX_DEV doesn't exist, please check your $EX_DEV definition.")
 endif
 
 " ------------------------------------------------------------------ 
@@ -105,7 +110,12 @@ endif
 " ------------------------------------------------------------------ 
 
 if !exists ( "g:ex_toolkit_path" )
-    let g:ex_toolkit_path = $EX_DEV.'/exVim/toolkit'
+    let g:ex_toolkit_path = $EX_DEV.'/tools/exvim/toolkit'
+endif
+
+" check if the toolkit path exists
+if finddir(g:ex_toolkit_path) == ''
+    call exUtility#WarningMsg("the toolkit path doesn't exits, please set a right path to the global variable g:ex_toolkit_path in your .vimrc")
 endif
 
 " ------------------------------------------------------------------ 
@@ -173,7 +183,7 @@ silent call exUtility#SetProjectFilter ( "dir_filter", "" ) " null-string means 
 "/////////////////////////////////////////////////////////////////////////////
 
 " ------------------------------------------------------------------ 
-" Desc: update the syntax highlight in exVim  
+" Desc: update the syntax highlight in exvim  
 " ------------------------------------------------------------------ 
 
 function s:UpdateSyntaxHighlights() " <<<
@@ -387,6 +397,7 @@ command LINE call exUtility#PutLine(86, '-')
 command -narg=1 NSS call exUtility#PutNamespaceStart('<args>')
 command -narg=1 NSE call exUtility#PutNamespaceEnd('<args>')
 command -range -narg=1 NS call exUtility#PutNamespace('<args>', <line1>, <line2>)
+command -range EXTC call exUtility#PutExternC(<line1>, <line2>)
 command HEADER call exUtility#PutHeader()
 command SEP call exUtility#PutSeparate()
 command SEG call exUtility#PutSegment()

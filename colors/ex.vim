@@ -2,7 +2,7 @@
 " File         : ex.vim
 " Author       : Wu Jie 
 " Last Change  : 05/30/2009 | 19:26:16 PM | Saturday,May
-" Description  : exDev default color scheme 
+" Description  : exdev default color scheme 
 " ======================================================================================
 
 " /////////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,8 @@ let colors_name = "ex"
 "  Color Define 
 " /////////////////////////////////////////////////////////////////////////////
 
-hi Normal       font=Lucida_Console:h9:cANSI
+" set font in vimrc instead of here.
+" hi Normal       font=Lucida_Console:h9:cANSI
 
 hi SpecialKey   term=bold ctermfg=1 guifg=Blue
 hi NonText      term=bold ctermfg=9 gui=bold guifg=Blue
